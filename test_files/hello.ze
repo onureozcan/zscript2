@@ -1,0 +1,3 @@
+var main = fun() {
+	print("hello world!")
+}

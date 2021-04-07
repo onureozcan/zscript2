@@ -1,0 +1,12 @@
+*.in
+cmake-build-debug/
+*.obj
+x64/
+*.jar
+*.tlog
+*.tokens
+.idea/
+*.json
+*.xml
+*.interp
+*.jav
