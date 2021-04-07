@@ -7,9 +7,10 @@ using namespace std;
 namespace zero {
     class TypeInfo {
     public:
-        const string name;
+        string name;
 
-        static TypeInfo NUMERIC;
+        static TypeInfo INT;
+        static TypeInfo DECIMAL;
         static TypeInfo STRING;
         static TypeInfo FUNCTION;
         static TypeInfo OBJECT;
@@ -17,6 +18,6 @@ namespace zero {
         static TypeInfo _VOID;
         static TypeInfo _NAN;
 
-        TypeInfo(const string name);
+        TypeInfo(string name);
     };
 }

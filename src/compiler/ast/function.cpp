@@ -18,10 +18,4 @@ namespace zero {
 
         return function;
     }
-
-    string FunctionAstNode::toString() {
-        string argsStr;
-        for (const auto &piece : *arguments) argsStr += piece;
-        return "\nfun" + this->identifier + "(" + argsStr + "){\n" + this->program->toString() + "\n}\n";
-    }
 }

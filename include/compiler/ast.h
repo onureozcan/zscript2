@@ -33,6 +33,8 @@ namespace zero {
         static int TYPE_FUNCTION_CALL;
 
         static ExpressionAstNode *from(ZParser::ExpressionContext *expressionContext, string fileName);
+
+        string toString() override;
     };
 
     class BinaryExpressionAstNode : public ExpressionAstNode {
@@ -50,7 +52,7 @@ namespace zero {
     class FunctionCallExpressionAstNode : public ExpressionAstNode {
     public:
         ExpressionAstNode *left;
-        vector<ExpressionAstNode *> *args;
+        vector<ExpressionAstNode *> *params;
     };
 
     class AtomicExpressionAstNode : public ExpressionAstNode {
@@ -106,7 +108,5 @@ namespace zero {
         vector<string> *arguments;
 
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
-
-        string toString() override;
     };
 }
