@@ -15,6 +15,25 @@ namespace zero {
 
     //// --- IMPL
 
+    class CompileError : public exception {
+    public:
+        CompileError(const char *const message) : exception(message) {}
+    };
+
+    class Context {
+    private:
+        map<string, TypeInfo> variableTypeInfoMap;
+    public:
+        void addVariable(string identifier, TypeInfo typeInfo) {
+            auto isDefinedBefore = variableTypeInfoMap.find(identifier) != variableTypeInfoMap.end();
+            if (!isDefinedBefore) {
+                variableTypeInfoMap[identifier] = typeInfo;
+            } else {
+                throw CompileError(("variable " + identifier + "is already defined!").c_str());
+            }
+        }
+    };
+
     class CompilerImpl {
     public:
         Program *compileFile(const string &fileName) {
@@ -30,14 +49,31 @@ namespace zero {
             ZParser parser(&tokens);
 
             ZParser::RootContext *root = parser.root();
-            ProgramAstNode* programAst = ProgramAstNode::from(root->program(), fileName);
+            ProgramAstNode *programAst = ProgramAstNode::from(root->program(), fileName);
+            doCompile(programAst);
 
-            log.debug("ast :\n %s", programAst->toString().c_str());
             return nullptr;
         }
 
     private:
         Logger log = Logger("compiler");
+        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor();
+
+        void doCompile(ProgramAstNode *programAst) {
+            extractAndRegisterTypeMetadata(programAst);
+            log.debug("ast :\n %s", programAst->toString().c_str());
+            generateByteCode(programAst);
+        }
+
+        void extractAndRegisterTypeMetadata(ProgramAstNode *pNode) {
+            // TODO: iterate over all the functions and extract type info
+            // this will be helpful when we import some function from other files
+            // it also allow us to use a class that is later defined in the file
+        }
+
+        void generateByteCode(ProgramAstNode *pNode) {
+
+        }
 
         static string readFile(const string &fileName) {
             ifstream t(fileName);

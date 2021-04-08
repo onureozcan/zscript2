@@ -73,7 +73,7 @@ namespace zero {
             functionCall->expressionType = TYPE_FUNCTION_CALL;
             functionCall->left = from(expressionContext->expression(0), fileName);
             functionCall->params = new vector<ExpressionAstNode *>();
-            for (int i = 1; i < expressionContext->expression().size(); i++) {
+            for (unsigned int i = 1; i < expressionContext->expression().size(); i++) {
                 functionCall->params->push_back(from(expressionContext->expression(i), fileName));
             }
             expression = functionCall;
