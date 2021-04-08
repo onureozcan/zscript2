@@ -1,4 +1,4 @@
-#include <compiler/type.h>
+#include <compiler/type_meta.h>
 
 namespace zero {
 
@@ -7,7 +7,9 @@ namespace zero {
         map<string, TypeInfo *> typeMap;
     public:
         TypeInfo *findTypeByName(string name) {
-            return typeMap[name];
+            if (typeMap.find(name) != typeMap.end())
+                return typeMap[name];
+            else return nullptr;
         }
 
         void registerType(string name, TypeInfo *type) {

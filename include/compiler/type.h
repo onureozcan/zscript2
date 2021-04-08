@@ -9,6 +9,7 @@ using namespace std;
 namespace zero {
     class TypeInfo {
         class Impl;
+    public:
 
         class PropertyDescriptor {
         public:
@@ -17,7 +18,6 @@ namespace zero {
             int index;
         };
 
-    public:
         string name;
 
         static TypeInfo INT;
@@ -34,32 +34,6 @@ namespace zero {
         void addProperty(string name, TypeInfo *type);
 
         PropertyDescriptor *getProperty(string name);
-
-    private:
-        Impl *impl;
-    };
-
-    class TypeMetadataRepository {
-        class Impl;
-
-    public:
-        void registerType(string name, TypeInfo *type);
-
-        TypeInfo *findTypeByName(string name);
-
-        TypeMetadataRepository();
-
-    private:
-        Impl *impl;
-    };
-
-    class TypeMetadataExtractor {
-        class Impl;
-
-    public:
-        void extractAndRegister(BaseAstNode *ast);
-
-        TypeMetadataExtractor();
 
     private:
         Impl *impl;

@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include <compiler/type.h>
 #include <compiler/op.h>
 
 #include "ZParser.h"
@@ -24,13 +23,17 @@ namespace zero {
 
     class ExpressionAstNode : public BaseAstNode {
     public:
-        TypeInfo *typeInfo;
         int expressionType;
 
-        static int TYPE_ATOMIC;
-        static int TYPE_UNARY;
-        static int TYPE_BINARY;
-        static int TYPE_FUNCTION_CALL;
+        string typeName = "?";
+
+        int memoryIndex; // memory index in the current context
+        int memoryDepth; // how many contexts i need to go up to find this property - only relevant for direct access
+
+        static const int TYPE_ATOMIC = 0;
+        static const int TYPE_UNARY = 1;
+        static const int TYPE_BINARY = 2;
+        static const int TYPE_FUNCTION_CALL = 3;
 
         static ExpressionAstNode *from(ZParser::ExpressionContext *expressionContext, string fileName);
 
@@ -60,11 +63,11 @@ namespace zero {
         string data;
         int atomicType;
 
-        static int TYPE_IDENTIFIER;
-        static int TYPE_INT;
-        static int TYPE_DECIMAL;
-        static int TYPE_STRING;
-        static int TYPE_FUNCTION;
+        static const int TYPE_IDENTIFIER = 0;
+        static const int TYPE_INT = 1;
+        static const int TYPE_DECIMAL = 2;
+        static const int TYPE_STRING = 3;
+        static const int TYPE_FUNCTION = 4;
     };
 
     class VariableAstNode : public BaseAstNode {

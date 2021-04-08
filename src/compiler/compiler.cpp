@@ -1,12 +1,13 @@
-#include <common/program.h>
-#include <common/logger.h>
-#include <compiler/compiler.h>
 #include <string>
 #include "antlr4-runtime.h"
 #include "ZLexer.h"
 #include "ZParser.h"
 
+#include <common/program.h>
+#include <common/logger.h>
+#include <compiler/compiler.h>
 #include <compiler/ast.h>
+#include <compiler/type_meta.h>
 
 using namespace std;
 using namespace antlr4;
@@ -14,25 +15,6 @@ using namespace antlr4;
 namespace zero {
 
     //// --- IMPL
-
-    class CompileError : public exception {
-    public:
-        CompileError(const char *const message) : exception(message) {}
-    };
-
-    class Context {
-    private:
-        map<string, TypeInfo> variableTypeInfoMap;
-    public:
-        void addVariable(string identifier, TypeInfo typeInfo) {
-            auto isDefinedBefore = variableTypeInfoMap.find(identifier) != variableTypeInfoMap.end();
-            if (!isDefinedBefore) {
-                variableTypeInfoMap[identifier] = typeInfo;
-            } else {
-                throw CompileError(("variable " + identifier + "is already defined!").c_str());
-            }
-        }
-    };
 
     class CompilerImpl {
     public:
@@ -57,7 +39,8 @@ namespace zero {
 
     private:
         Logger log = Logger("compiler");
-        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor();
+        TypeMetadataRepository typeRepository;
+        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor(&typeRepository);
 
         void doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);
@@ -65,10 +48,19 @@ namespace zero {
             generateByteCode(programAst);
         }
 
-        void extractAndRegisterTypeMetadata(ProgramAstNode *pNode) {
+        void extractAndRegisterTypeMetadata(ProgramAstNode *program) {
             // TODO: iterate over all the functions and extract type info
             // this will be helpful when we import some function from other files
             // it also allow us to use a class that is later defined in the file
+
+            FunctionAstNode* globalWrapper = new FunctionAstNode();
+            globalWrapper->program = program;
+            globalWrapper->identifier = "global";
+            globalWrapper->fileName = program->fileName;
+            globalWrapper->pos = 0;
+            globalWrapper->line = 0;
+
+            metadataExtractor.extractAndRegister(globalWrapper);
         }
 
         void generateByteCode(ProgramAstNode *pNode) {

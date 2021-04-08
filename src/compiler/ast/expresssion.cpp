@@ -1,19 +1,8 @@
 #include <compiler/ast.h>
 #include <ZParser.h>
+#include <compiler/type.h>
 
 namespace zero {
-
-    int ExpressionAstNode::TYPE_ATOMIC = 0;
-    int ExpressionAstNode::TYPE_UNARY = 1;
-    int ExpressionAstNode::TYPE_BINARY = 2;
-    int ExpressionAstNode::TYPE_FUNCTION_CALL = -1;
-
-    int AtomicExpressionAstNode::TYPE_STRING = 0;
-    int AtomicExpressionAstNode::TYPE_IDENTIFIER = 1;
-    int AtomicExpressionAstNode::TYPE_FUNCTION = 2;
-    int AtomicExpressionAstNode::TYPE_DECIMAL = 0;
-    int AtomicExpressionAstNode::TYPE_INT = 0;
-
 
     AtomicExpressionAstNode *createAtom(ZParser::AtomContext *atomContext, string fileName) {
         if (atomContext->function() != nullptr) {
@@ -86,8 +75,8 @@ namespace zero {
         return expression;
     }
 
-    string typeInfoStr(TypeInfo *typeInfo) {
-        return ":" + ((typeInfo != nullptr) ? typeInfo->name : "?");
+    string typeInfoStr(string typeIdent) {
+        return ":" + typeIdent;
     }
 
     string ExpressionAstNode::toString() {
@@ -97,14 +86,14 @@ namespace zero {
             for (auto &piece: *call->params) {
                 paramsStr += piece->toString() + ",";
             }
-            return "(" + call->left->toString() + "(" + paramsStr + ")" + typeInfoStr(this->typeInfo) + ")";
+            return "(" + call->left->toString() + "(" + paramsStr + ")" + typeInfoStr(this->typeName) + ")";
         } else if (expressionType == TYPE_UNARY) {
             auto prefix = ((PrefixExpressionAstNode *) this);
-            return "(" + prefix->op->name + "" + prefix->right->toString() + typeInfoStr(this->typeInfo) + ")";
+            return "(" + prefix->op->name + "" + prefix->right->toString() + typeInfoStr(this->typeName) + ")";
         } else if (expressionType == TYPE_BINARY) {
             auto binary = ((BinaryExpressionAstNode *) this);
             return "(" + binary->left->toString() + "" + binary->op->name + "" +
-                   binary->right->toString() + typeInfoStr(this->typeInfo) + ")";
+                   binary->right->toString() + typeInfoStr(this->typeName) + ")";
         } else if (expressionType == TYPE_ATOMIC) {
             auto atom = ((AtomicExpressionAstNode *) this);
             if (atom->atomicType == AtomicExpressionAstNode::TYPE_FUNCTION) {
@@ -112,9 +101,9 @@ namespace zero {
                 string argsStr;
                 for (const auto &piece : *function->arguments) argsStr += piece;
                 return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() + "}" +
-                       typeInfoStr(this->typeInfo) + ")";
+                       typeInfoStr(this->typeName) + ")";
             } else {
-                return "(" + atom->data + typeInfoStr(this->typeInfo) + ")";
+                return "(" + atom->data + typeInfoStr(this->typeName) + ")";
             }
         } else {
             return BaseAstNode::toString();
