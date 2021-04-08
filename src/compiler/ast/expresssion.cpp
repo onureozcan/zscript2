@@ -49,13 +49,13 @@ namespace zero {
             binary->expressionType = TYPE_BINARY;
             binary->left = from(expressionContext->expression(0), fileName);
             binary->right = from(expressionContext->expression(1), fileName);
-            binary->op = Operator::getBy(expressionContext->bop->getText(), 2);
+            binary->opName = expressionContext->bop->getText();
             expression = binary;
         } else if (expressionContext->prefix != nullptr) {
             auto unary = new PrefixExpressionAstNode();
             unary->expressionType = TYPE_UNARY;
             unary->right = from(expressionContext->expression(0), fileName);
-            unary->op = Operator::getBy(expressionContext->prefix->getText(), 2);
+            unary->opName = expressionContext->prefix->getText();
             expression = unary;
         } else {
             auto functionCall = new FunctionCallExpressionAstNode();
@@ -80,33 +80,39 @@ namespace zero {
     }
 
     string ExpressionAstNode::toString() {
-        if (expressionType == TYPE_FUNCTION_CALL) {
-            auto call = ((FunctionCallExpressionAstNode *) this);
-            string paramsStr;
-            for (auto &piece: *call->params) {
-                paramsStr += piece->toString() + ",";
+        switch (expressionType) {
+            case TYPE_FUNCTION_CALL: {
+                auto call = ((FunctionCallExpressionAstNode *) this);
+                string paramsStr;
+                for (auto &piece: *call->params) {
+                    paramsStr += piece->toString() + ",";
+                }
+                return "(" + call->left->toString() + "(" + paramsStr + ")" + typeInfoStr(this->typeName) + ")";
             }
-            return "(" + call->left->toString() + "(" + paramsStr + ")" + typeInfoStr(this->typeName) + ")";
-        } else if (expressionType == TYPE_UNARY) {
-            auto prefix = ((PrefixExpressionAstNode *) this);
-            return "(" + prefix->op->name + "" + prefix->right->toString() + typeInfoStr(this->typeName) + ")";
-        } else if (expressionType == TYPE_BINARY) {
-            auto binary = ((BinaryExpressionAstNode *) this);
-            return "(" + binary->left->toString() + "" + binary->op->name + "" +
-                   binary->right->toString() + typeInfoStr(this->typeName) + ")";
-        } else if (expressionType == TYPE_ATOMIC) {
-            auto atom = ((AtomicExpressionAstNode *) this);
-            if (atom->atomicType == AtomicExpressionAstNode::TYPE_FUNCTION) {
-                auto function = ((FunctionAstNode *) atom);
-                string argsStr;
-                for (const auto &piece : *function->arguments) argsStr += piece;
-                return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() + "}" +
-                       typeInfoStr(this->typeName) + ")";
-            } else {
-                return "(" + atom->data + typeInfoStr(this->typeName) + ")";
+            case TYPE_UNARY: {
+                auto prefix = ((PrefixExpressionAstNode *) this);
+                return "(" + prefix->opName + "" + prefix->right->toString() + typeInfoStr(this->typeName) + ")";
             }
-        } else {
-            return BaseAstNode::toString();
+            case TYPE_BINARY: {
+                auto binary = ((BinaryExpressionAstNode *) this);
+                return "(" + binary->left->toString() + "" + binary->opName + "" +
+                       binary->right->toString() + typeInfoStr(this->typeName) + ")";
+            }
+            case TYPE_ATOMIC: {
+                auto atom = ((AtomicExpressionAstNode *) this);
+                if (atom->atomicType == AtomicExpressionAstNode::TYPE_FUNCTION) {
+                    auto function = ((FunctionAstNode *) atom);
+                    string argsStr;
+                    for (const auto &piece : *function->arguments) argsStr += piece;
+                    return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() + "}" +
+                           typeInfoStr(this->typeName) + ")";
+                } else {
+                    return "(" + atom->data + typeInfoStr(this->typeName) + ")";
+                }
+            }
+            default: {
+                return BaseAstNode::toString();
+            }
         }
     }
 }

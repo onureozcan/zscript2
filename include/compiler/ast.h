@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include <compiler/op.h>
-
 #include "ZParser.h"
 
 using namespace std;
@@ -43,13 +41,13 @@ namespace zero {
     class BinaryExpressionAstNode : public ExpressionAstNode {
     public:
         ExpressionAstNode *left, *right;
-        Operator *op;
+        string opName;
     };
 
     class PrefixExpressionAstNode : public ExpressionAstNode {
     public:
         ExpressionAstNode *right;
-        Operator *op;
+        string opName;
     };
 
     class FunctionCallExpressionAstNode : public ExpressionAstNode {

@@ -15,7 +15,7 @@ namespace zero {
         }
 
     private:
-        struct propertyPointer {
+        struct LocalPropertyPointer {
             int depth;
             TypeInfo::PropertyDescriptor *descriptor;
         };
@@ -32,6 +32,7 @@ namespace zero {
         void addContext(FunctionAstNode *function) {
             auto newContext = new TypeInfo(
                     function->fileName + "@" + to_string(function->line) + "&" + to_string(function->pos));
+            function->typeName = newContext->name;
             if (currentContext != nullptr)
                 newContext->addProperty("$parent", currentContext);
             contextStack.push_back(newContext);
@@ -47,6 +48,7 @@ namespace zero {
         }
 
         void visitVariable(VariableAstNode *variable) {
+            currentAstNode = variable;
             if (variable->initialValue != nullptr) {
                 currentContext->addProperty(variable->identifier, &TypeInfo::ANY);
             } else {
@@ -55,7 +57,7 @@ namespace zero {
             }
         }
 
-        propertyPointer findPropertyInContextChainOrError(string name) {
+        LocalPropertyPointer findPropertyInContextChainOrError(string name) {
             int depth = 0;
             TypeInfo *current = currentContext;
             while (current != nullptr) {
@@ -69,6 +71,7 @@ namespace zero {
         }
 
         void visitAtom(AtomicExpressionAstNode *atomic) {
+            currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
                     atomic->typeName = TypeInfo::DECIMAL.name;
@@ -87,7 +90,7 @@ namespace zero {
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
-                    propertyPointer depthTypeInfo = findPropertyInContextChainOrError(atomic->data);
+                    LocalPropertyPointer depthTypeInfo = findPropertyInContextChainOrError(atomic->data);
                     atomic->typeName = depthTypeInfo.descriptor->typeInfo->name;
                     atomic->memoryDepth = depthTypeInfo.depth;
                     atomic->memoryIndex = depthTypeInfo.descriptor->index;
@@ -96,14 +99,25 @@ namespace zero {
             }
         }
 
+        void visitBinary(BinaryExpressionAstNode *binary) {
+            currentAstNode = binary;
+
+        }
+
         void visitExpression(ExpressionAstNode *expression) {
             switch (expression->expressionType) {
-                case ExpressionAstNode::TYPE_ATOMIC :
+                case ExpressionAstNode::TYPE_ATOMIC : {
                     visitAtom((AtomicExpressionAstNode *) expression);
+                    break;
+                }
+                case ExpressionAstNode::TYPE_BINARY: {
+                    visitBinary((BinaryExpressionAstNode *) expression);
+                }
             }
         }
 
         void visitFunction(FunctionAstNode *function) {
+            currentAstNode = function;
             addContext(function);
             auto statements = function->program->statements;
             for (auto &stmt: *statements) {
