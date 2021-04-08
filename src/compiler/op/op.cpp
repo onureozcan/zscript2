@@ -2,6 +2,7 @@
 #include <map>
 
 #include <compiler/op.h>
+#include <stdexcept>
 
 using namespace std;
 
@@ -31,6 +32,8 @@ namespace zero {
     Operator Operator::CALL = Operator("call", -1);
     Operator Operator::DOT = Operator(".", 2);
 
+    Operator Operator::ASSIGN = Operator("=", 2);
+
     Operator::Operator(string name, int numberOfOperands) {
         this->name = name;
         this->numberOfOperands = numberOfOperands;
@@ -42,5 +45,20 @@ namespace zero {
         if (operatorMap.find(key) != operatorMap.end())
             return operatorMap[getMapKey(name, numberOfOperands)];
         return nullptr;
+    }
+
+    string Operator::getReturnType(Operator *op, vector<string> operandTypes) {
+        if (op == &ASSIGN) {
+            string type1 = operandTypes[0];
+            string type2 = operandTypes[1];
+            if (strcmp(type1.c_str(), type2.c_str()) == 0) {
+                return type1;
+            }
+        }
+        string typesStr;
+        for (auto &piece: operandTypes) {
+            typesStr += piece + " ";
+        }
+        throw runtime_error("operator `" + op->name + "` does not work on types [ " + typesStr + "]");
     }
 }

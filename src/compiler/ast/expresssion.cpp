@@ -19,6 +19,7 @@ namespace zero {
 
         if (atomContext->IDENT() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_IDENTIFIER;
+            atomic->isLvalue = 1;
         }
         if (atomContext->STRING() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_STRING;

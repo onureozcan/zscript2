@@ -28,6 +28,8 @@ namespace zero {
         int memoryIndex; // memory index in the current context
         int memoryDepth; // how many contexts i need to go up to find this property - only relevant for direct access
 
+        int isLvalue;
+
         static const int TYPE_ATOMIC = 0;
         static const int TYPE_UNARY = 1;
         static const int TYPE_BINARY = 2;

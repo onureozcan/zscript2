@@ -4,4 +4,7 @@ var main = fun() {
 	var b = 3
 	(print)(a+b)
 	a.length
+	var c = fun() {
+	    a // this needs to be found in the context chain
+	}
 }

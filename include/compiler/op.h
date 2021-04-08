@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -35,9 +36,12 @@ namespace zero {
         // language specific
         static Operator CALL;
         static Operator DOT;
+        static Operator ASSIGN;
 
         Operator(string name, int numberOfOperands);
 
-        static Operator* getBy(string name, int numberOfOperands);
+        static Operator *getBy(string name, int numberOfOperands);
+
+        static string getReturnType(Operator *op, vector <string> operands);
     };
 }

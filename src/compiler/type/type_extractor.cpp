@@ -80,12 +80,13 @@ namespace zero {
         LocalPropertyPointer findPropertyInContextChainOrError(string name) {
             int depth = 0;
             TypeInfo *current = currentContext;
-            while (current != nullptr) {
+            while (current != nullptr && depth < contextStack.size()) {
                 auto descriptor = current->getProperty(name);
                 if (descriptor != nullptr) {
                     return {depth, descriptor};
                 }
                 current = contextStack[contextStack.size() - depth - 1];
+                depth++;
             }
             errorExit("cannot find variable " + name + currentNodeInfoStr());
         }
@@ -119,11 +120,31 @@ namespace zero {
             }
         }
 
+        void visitAssign(BinaryExpressionAstNode *binary) {
+            visitExpression(binary->left);
+            visitExpression(binary->right);
+            if (!binary->left->isLvalue) {
+                errorExit("lvalue expected for assignment." + currentNodeInfoStr());
+            }
+        }
+
         void visitBinary(BinaryExpressionAstNode *binary) {
             currentAstNode = binary;
             Operator *op = opOrError(binary->opName, 2);
             if (op == &Operator::DOT) {
                 visitDot(binary);
+                return;
+            } else if (op == &Operator::ASSIGN) {
+                visitAssign(binary);
+            } else {
+                visitExpression(binary->left);
+                visitExpression(binary->right);
+            }
+            try {
+                string returnTypeStr = Operator::getReturnType(op, {binary->left->typeName, binary->right->typeName});
+                binary->typeName = returnTypeStr;
+            } catch (runtime_error e) {
+                errorExit(e.what() + currentNodeInfoStr());
             }
         }
 
@@ -149,6 +170,7 @@ namespace zero {
             auto propertyDescriptor = findPropertyInObjectOrError(binary->left, propertyNameToSearch);
             binary->typeName = propertyDescriptor->name;
             binary->memoryIndex = propertyDescriptor->index;
+            binary->isLvalue = right->isLvalue;
         }
 
         void visitExpression(ExpressionAstNode *expression) {
