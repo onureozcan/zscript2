@@ -37,7 +37,10 @@ namespace zero {
         operatorMap.insert({name + "$" + to_string(numberOfOperands), this});
     }
 
-    Operator* Operator::getBy(string name, int numberOfOperands) {
-        return operatorMap[getMapKey(name, numberOfOperands)];
+    Operator *Operator::getBy(string name, int numberOfOperands) {
+        string key = getMapKey(name, numberOfOperands);
+        if (operatorMap.find(key) != operatorMap.end())
+            return operatorMap[getMapKey(name, numberOfOperands)];
+        return nullptr;
     }
 }

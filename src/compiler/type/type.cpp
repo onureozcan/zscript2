@@ -18,7 +18,7 @@ namespace zero {
     public:
         void addProperty(string name, TypeInfo *pInfo) {
             auto descriptor = new PropertyDescriptor();
-            descriptor->name = name;
+            descriptor->name = pInfo->name;
             descriptor->typeInfo = pInfo;
             descriptor->index = indexCounter++;
             propertiesMap[name] = descriptor;

@@ -12,7 +12,7 @@ namespace zero {
         class Impl;
 
     public:
-        void registerType(string name, TypeInfo *type);
+        void registerType(TypeInfo *type);
 
         TypeInfo *findTypeByName(string name);
 

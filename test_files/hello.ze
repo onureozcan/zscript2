@@ -3,4 +3,5 @@ var main = fun() {
 	var a = "test"
 	var b = 3
 	(print)(a+b)
+	a.length
 }

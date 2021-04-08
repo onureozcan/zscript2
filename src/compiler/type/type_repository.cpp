@@ -6,14 +6,27 @@ namespace zero {
     private:
         map<string, TypeInfo *> typeMap;
     public:
+        Impl() {
+            registerType(&TypeInfo::STRING);
+            registerType(&TypeInfo::INT);
+            registerType(&TypeInfo::DECIMAL);
+            registerType(&TypeInfo::NATIVE_FUNCTION);
+            registerType(&TypeInfo::FUNCTION);
+            registerType(&TypeInfo::ANY);
+            registerType(&TypeInfo::_NAN);
+            registerType(&TypeInfo::_VOID);
+
+            TypeInfo::STRING.addProperty("length", &TypeInfo::NATIVE_FUNCTION);
+        }
+
         TypeInfo *findTypeByName(string name) {
             if (typeMap.find(name) != typeMap.end())
                 return typeMap[name];
             else return nullptr;
         }
 
-        void registerType(string name, TypeInfo *type) {
-            typeMap[name] = type;
+        void registerType(TypeInfo *type) {
+            typeMap[type->name] = type;
         }
     };
 
@@ -21,8 +34,8 @@ namespace zero {
         this->impl = new Impl();
     }
 
-    void TypeMetadataRepository::registerType(string name, TypeInfo *type) {
-        impl->registerType(name, type);
+    void TypeMetadataRepository::registerType(TypeInfo *type) {
+        impl->registerType(type);
     }
 
     TypeInfo *TypeMetadataRepository::findTypeByName(string name) {
