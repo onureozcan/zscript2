@@ -49,14 +49,7 @@ namespace zero {
         }
 
         void extractAndRegisterTypeMetadata(ProgramAstNode *program) {
-            auto *globalWrapper = new FunctionAstNode();
-            globalWrapper->program = program;
-            globalWrapper->fileName = program->fileName;
-            globalWrapper->arguments = new vector<pair<string, string>>();
-            globalWrapper->pos = 0;
-            globalWrapper->line = 0;
-
-            metadataExtractor.extractAndRegister(globalWrapper);
+            metadataExtractor.extractAndRegister(program);
         }
 
         void generateByteCode(ProgramAstNode *pNode) {

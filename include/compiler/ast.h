@@ -74,6 +74,7 @@ namespace zero {
     public:
         string identifier;
         string typeName;
+        int hasExplicitTypeInfo;
         ExpressionAstNode *initialValue;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);
@@ -109,7 +110,8 @@ namespace zero {
     public:
         string identifier;
         ProgramAstNode *program;
-        vector<pair<string,string>> *arguments;
+        vector<pair<string, string>> *arguments;
+        string returnTypeName;
 
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
     };

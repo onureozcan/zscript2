@@ -12,8 +12,8 @@ namespace zero {
     public:
         TypeMetadataRepository *typeMetadataRepository;
 
-        void extractAndRegister(FunctionAstNode *function) {
-            visitFunction(function);
+        void extractAndRegister(ProgramAstNode *program) {
+            visitGlobal(program);
         }
 
     private:
@@ -38,27 +38,29 @@ namespace zero {
                    to_string(currentAstNode->line);
         }
 
-        void addContext(FunctionAstNode *function) {
+        TypeInfo *getOrRegisterFunctionType(vector<string> argTypes, string returnType) {
             string argsStr;
-            for (const auto &piece : *function->arguments) argsStr += piece.first + ":" + piece.second + ",";
-            auto newContext = new TypeInfo("function<" + argsStr + ">@" +
-                                           function->fileName + "(" + to_string(function->line) + "&" +
-                                           to_string(function->pos) + ")");
-            function->typeName = newContext->name;
-            for (const auto &piece : *function->arguments) {
-                newContext->addProperty(piece.first, typeOrError(piece.second));
+            for (const auto &argType: argTypes) {
+                argsStr += argType + ",";
             }
-            typeMetadataRepository->registerType(newContext);
-            if (currentContext != nullptr)
-                newContext->addProperty("$parent", currentContext);
-            contextStack.push_back(newContext);
-            currentContext = contextStack[contextStack.size() - 1];
+            auto typeName = "fun<" + argsStr + returnType + ">";
+            TypeInfo *type = typeMetadataRepository->findTypeByName(typeName);
+            if (type == nullptr) {
+                type = new TypeInfo(typeName, 1);
+                for (auto &argType:argTypes) {
+                    type->addParameter(typeOrError(argType));
+                }
+                type->addParameter(typeOrError(returnType));
+                typeMetadataRepository->registerType(type);
+            }
+            return type;
         }
 
         TypeInfo *typeOrError(string name) {
             auto typeInfo = typeMetadataRepository->findTypeByName(name);
             if (typeInfo == nullptr) {
                 errorExit("unknown type `" + name + "` " + currentNodeInfoStr());
+
             }
             return typeInfo;
         }
@@ -72,20 +74,10 @@ namespace zero {
                       " operand(s) " + currentNodeInfoStr());
         }
 
-        void visitVariable(VariableAstNode *variable) {
-            currentAstNode = variable;
-            if (variable->initialValue == nullptr) {
-                currentContext->addProperty(variable->identifier, &TypeInfo::ANY);
-            } else {
-                visitExpression(variable->initialValue);
-                currentContext->addProperty(variable->identifier, typeOrError(variable->initialValue->typeName));
-            }
-        }
-
         LocalPropertyPointer findPropertyInContextChainOrError(string name) {
             int depth = 0;
             TypeInfo *current = currentContext;
-            while (current != nullptr && depth < contextStack.size()) {
+            while (current != nullptr && depth <= contextStack.size()) {
                 auto descriptor = current->getProperty(name);
                 if (descriptor != nullptr) {
                     return {depth, descriptor};
@@ -94,6 +86,40 @@ namespace zero {
                 depth++;
             }
             errorExit("cannot find variable " + name + currentNodeInfoStr());
+        }
+
+        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, string name) {
+            auto typeOfLeft = typeOrError(left->typeName);
+            auto typeInfo = typeOfLeft->getProperty(name);
+            if (typeInfo == nullptr) {
+                errorExit("object type `" + typeOfLeft->name + "` does not have property named `" + name + "`" +
+                          currentNodeInfoStr());
+            }
+            return typeInfo;
+        }
+
+        void visitVariable(VariableAstNode *variable) {
+            currentAstNode = variable;
+            auto expectedType = typeOrError(variable->typeName);
+            if (variable->initialValue == nullptr) {
+                currentContext->addProperty(variable->identifier, expectedType);
+            } else {
+                visitExpression(variable->initialValue);
+                auto initializedType = typeOrError(variable->initialValue->typeName);
+                TypeInfo *selectedType = nullptr;
+                if (variable->hasExplicitTypeInfo) {
+                    if (expectedType->isAssignableFrom(initializedType)) {
+                        selectedType = expectedType;
+                    } else {
+                        errorExit("cannot assign `" + initializedType->name + "` to `" + expectedType->name + "`" +
+                                  currentNodeInfoStr());
+                    }
+                } else {
+                    selectedType = initializedType;
+                }
+                currentContext->addProperty(variable->identifier, selectedType);
+                variable->typeName = selectedType->name;
+            }
         }
 
         void visitAtom(AtomicExpressionAstNode *atomic) {
@@ -153,16 +179,6 @@ namespace zero {
             }
         }
 
-        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, string name) {
-            auto typeOfLeft = typeOrError(left->typeName);
-            auto typeInfo = typeOfLeft->getProperty(name);
-            if (typeInfo == nullptr) {
-                errorExit("object type `" + typeOfLeft->name + "` does not have property named `" + name + "`" +
-                          currentNodeInfoStr());
-            }
-            return typeInfo;
-        }
-
         void visitDot(BinaryExpressionAstNode *binary) {
             visitExpression(binary->left);
             if (binary->right->expressionType != ExpressionAstNode::TYPE_ATOMIC
@@ -173,8 +189,9 @@ namespace zero {
             auto *right = (AtomicExpressionAstNode *) binary->right;
             auto propertyNameToSearch = right->data;
             auto propertyDescriptor = findPropertyInObjectOrError(binary->left, propertyNameToSearch);
+            binary->right->typeName = propertyDescriptor->name;
+            binary->right->memoryIndex = propertyDescriptor->index;
             binary->typeName = propertyDescriptor->name;
-            binary->memoryIndex = propertyDescriptor->index;
             binary->isLvalue = right->isLvalue;
         }
 
@@ -183,7 +200,35 @@ namespace zero {
         }
 
         void visitFunctionCall(FunctionCallExpressionAstNode *call) {
+            visitExpression(call->left);
+            for (auto parameter:*call->params) {
+                visitExpression(parameter);
+            }
+            currentAstNode = call;
 
+            // check if it is callable
+            auto calleeType = typeOrError(call->left->typeName);
+            if (!calleeType->isCallable) {
+                errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
+            }
+            auto expectedParameterTypes = calleeType->getParameters();
+            auto expectedParameterCount = expectedParameterTypes.size() - 1;
+            if (expectedParameterCount != call->params->size()) {
+                errorExit("expected " + to_string(expectedParameterCount) + " args, given " +
+                          to_string(call->params->size()) + "" + currentNodeInfoStr());
+            }
+            for (unsigned int i = 0; i < call->params->size(); i++) {
+                auto expectedType = expectedParameterTypes[i];
+                auto givenType = typeOrError(call->params->at(i)->typeName);
+                if (!expectedType->isAssignableFrom(givenType)) {
+                    errorExit("cannot pass type `" + givenType->name + "` as parameter to arg of type `" +
+                              expectedType->name + "` " + currentNodeInfoStr());
+                }
+            }
+
+            // the last parameter is the return type
+            auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1);
+            call->typeName = returnType->name;
         }
 
         void visitExpression(ExpressionAstNode *expression) {
@@ -194,31 +239,81 @@ namespace zero {
                 }
                 case ExpressionAstNode::TYPE_BINARY: {
                     visitBinary((BinaryExpressionAstNode *) expression);
+                    break;
                 }
                 case ExpressionAstNode::TYPE_UNARY: {
                     visitUnary((PrefixExpressionAstNode *) expression);
+                    break;
                 }
                 case ExpressionAstNode::TYPE_FUNCTION_CALL: {
                     visitFunctionCall((FunctionCallExpressionAstNode *) expression);
+                    break;
                 }
+            }
+        }
+
+
+        void addContext(BaseAstNode *ast) {
+            auto newContext = new TypeInfo("FunContext@" +
+                                           ast->fileName + "(" + to_string(ast->line) + "&" +
+                                           to_string(ast->pos) + ")", 0);
+            typeMetadataRepository->registerType(newContext);
+            if (currentContext != nullptr)
+                newContext->addProperty("$parent", currentContext);
+            contextStack.push_back(newContext);
+            currentContext = contextStack[contextStack.size() - 1];
+        }
+
+        void visitGlobal(ProgramAstNode *program) {
+            currentAstNode = program;
+            addContext(program);
+            // native print function
+            currentContext->addProperty("print",
+                                        getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name));
+            //native to string function
+            TypeInfo::INT.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name));
+            TypeInfo::DECIMAL.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name));
+
+            auto statements = program->statements;
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
+            }
+        }
+
+        void visitStatement(StatementAstNode *stmt) {
+            if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
+                visitExpression(stmt->expression);
+            } else {
+                visitVariable(stmt->variable);
             }
         }
 
         void visitFunction(FunctionAstNode *function) {
             currentAstNode = function;
             addContext(function);
+            // register arguments to current context
+            for (const auto &piece : *function->arguments) {
+                currentContext->addProperty(piece.first, typeOrError(piece.second));
+            }
+
+            // create and register function type
+            vector<string> argTypes;
+            for (const auto &piece : *function->arguments) {
+                argTypes.push_back(piece.second);
+            }
+
+            TypeInfo *functionType = getOrRegisterFunctionType(argTypes, function->returnTypeName);
+            function->typeName = functionType->name;
+
+            // visit children
             auto statements = function->program->statements;
-            for (auto &stmt: *statements) {
-                if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
-                    visitExpression(stmt->expression);
-                } else {
-                    visitVariable(stmt->variable);
-                }
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
             }
         }
     };
 
-    void TypeMetadataExtractor::extractAndRegister(FunctionAstNode *function) {
+    void TypeMetadataExtractor::extractAndRegister(ProgramAstNode *function) {
         this->impl->extractAndRegister(function);
     }
 
@@ -226,5 +321,4 @@ namespace zero {
         this->impl = new Impl();
         this->impl->typeMetadataRepository = repository;
     }
-
 }

@@ -2,14 +2,11 @@
 
 namespace zero {
 
-    TypeInfo TypeInfo::STRING = TypeInfo("String");
-    TypeInfo TypeInfo::INT = TypeInfo("int");
-    TypeInfo TypeInfo::DECIMAL = TypeInfo("decimal");
-    TypeInfo TypeInfo::FUNCTION = TypeInfo("fun");
-    TypeInfo TypeInfo::NATIVE_FUNCTION = TypeInfo("native");
-    TypeInfo TypeInfo::ANY = TypeInfo("any");
-    TypeInfo TypeInfo::_VOID = TypeInfo("void");
-    TypeInfo TypeInfo::_NAN = TypeInfo("nan");
+    TypeInfo TypeInfo::STRING = TypeInfo(TYPE_LITERAL_STRING, 0);
+    TypeInfo TypeInfo::INT = TypeInfo(TYPE_LITERAL_INT, 0);
+    TypeInfo TypeInfo::DECIMAL = TypeInfo(TYPE_LITERAL_DECIMAL, 0);
+    TypeInfo TypeInfo::ANY = TypeInfo(TYPE_LITERAL_ANY, 0);
+    TypeInfo TypeInfo::T_VOID = TypeInfo(TYPE_LITERAL_VOID, 0);
 
     class TypeInfo::Impl {
     private:
@@ -17,10 +14,6 @@ namespace zero {
         vector<TypeInfo *> typeParameters;
         int indexCounter = 0;
     public:
-
-        Impl() {
-
-        }
 
         void addProperty(string name, TypeInfo *pInfo) {
             if (propertiesMap.find(name) == propertiesMap.end()) {
@@ -43,10 +36,15 @@ namespace zero {
         void addParameter(TypeInfo *pInfo) {
             typeParameters.push_back(pInfo);
         }
+
+        vector<TypeInfo *> getParameters() {
+            return typeParameters;
+        }
     };
 
-    TypeInfo::TypeInfo(string name) {
+    TypeInfo::TypeInfo(string name, int isCallable) {
         this->name = name;
+        this->isCallable = isCallable;
         this->impl = new Impl();
     }
 
@@ -60,5 +58,25 @@ namespace zero {
 
     void TypeInfo::addParameter(TypeInfo *type) {
         return this->impl->addParameter(type);
+    }
+
+    int TypeInfo::isAssignableFrom(TypeInfo *other) {
+        if (other == &TypeInfo::T_VOID) {
+            // void cannot be assigned to anything
+            return 0;
+        }
+        if (this == &TypeInfo::ANY) {
+            // anything can be assigned to any
+            return 1;
+        }
+        if (this == &TypeInfo::DECIMAL) {
+            // int can be auto cast to decimal
+            return other == &TypeInfo::INT || other == &TypeInfo::DECIMAL;
+        }
+        return other->name == this->name;
+    }
+
+    vector<TypeInfo *> TypeInfo::getParameters() {
+        return impl->getParameters();
     }
 }

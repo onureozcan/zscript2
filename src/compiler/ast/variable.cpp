@@ -1,4 +1,5 @@
 #include <compiler/ast.h>
+#include <compiler/type.h>
 #include <ZParser.h>
 
 namespace zero {
@@ -14,6 +15,9 @@ namespace zero {
         variable->identifier = variableDeclarationContext->typedIdent()->ident->getText();
         if (variableDeclarationContext->typedIdent()->type != nullptr) {
             variable->typeName = variableDeclarationContext->typedIdent()->type->getText();
+            variable->hasExplicitTypeInfo = 1;
+        } else {
+            variable->typeName = TypeInfo::ANY.name;
         }
 
         if (variableDeclarationContext->expression() != nullptr) {
@@ -23,6 +27,7 @@ namespace zero {
     }
 
     string VariableAstNode::toString() {
-        return "var " + identifier + " = " + (initialValue != nullptr ? initialValue->toString() : "null");
+        return "var " + identifier + ":" + typeName + " = " +
+               (initialValue != nullptr ? initialValue->toString() : "null");
     }
 }

@@ -26,7 +26,7 @@ namespace zero {
         class Impl;
 
     public:
-        void extractAndRegister(FunctionAstNode *function);
+        void extractAndRegister(ProgramAstNode *program);
 
         explicit TypeMetadataExtractor(TypeMetadataRepository* repository);
 

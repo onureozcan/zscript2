@@ -1,4 +1,6 @@
 #include <compiler/ast.h>
+#include <compiler/type.h>
+
 #include <ZParser.h>
 
 namespace zero {
@@ -16,9 +18,15 @@ namespace zero {
         function->arguments = new vector<pair<string, string>>();
         for (auto &piece: functionContext->typedIdent()) {
             string argName = piece->ident->getText();
-            string typeName = piece->type == nullptr ? "any" : piece->type->getText();
+            string typeName = piece->type == nullptr ? TypeInfo::ANY.name : piece->type->getText();
             function->arguments->push_back({argName, typeName});
         }
+        if (functionContext->type != nullptr) {
+            function->returnTypeName = functionContext->type->getText();
+        } else {
+            function->returnTypeName = TypeInfo::T_VOID.name;
+        }
+
         function->program = ProgramAstNode::from(functionContext->program(), fileName);
 
         return function;

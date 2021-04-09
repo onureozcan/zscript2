@@ -1,8 +1,9 @@
 #include <string>
 #include <map>
+#include <stdexcept>
 
 #include <compiler/op.h>
-#include <stdexcept>
+#include <compiler/type.h>
 
 using namespace std;
 
@@ -50,6 +51,26 @@ namespace zero {
     string Operator::getReturnType(Operator *op, string type1, string type2) {
         if (op == &ASSIGN) {
             if (strcmp(type1.c_str(), type2.c_str()) == 0) {
+                return type1;
+            }
+        }
+        auto isNumericOperator = op == &MUL || op == &DIV || op == &SUB || op == &ADD || op == &MOD;
+
+        if (isNumericOperator) {
+            if (type1 == TypeInfo::DECIMAL.name) {
+                if (type2 == TypeInfo::DECIMAL.name || type2 == TypeInfo::INT.name) {
+                    return type1;
+                }
+            } else if (type1 == TypeInfo::INT.name) {
+                if (type2 == TypeInfo::DECIMAL.name || type2 == TypeInfo::INT.name) {
+                    return type2;
+                }
+            }
+        }
+
+        if (op == &ADD) {
+            // string addition case
+            if (type1 == TypeInfo::STRING.name && type2 == type1) {
                 return type1;
             }
         }

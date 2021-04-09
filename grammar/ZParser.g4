@@ -17,7 +17,7 @@ statement
         )? statementEnd;
 
 function
-        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN LCURLY
+        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=IDENT)? LCURLY
         program
         RCURLY
         ;

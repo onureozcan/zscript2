@@ -10,13 +10,8 @@ namespace zero {
             registerType(&TypeInfo::STRING);
             registerType(&TypeInfo::INT);
             registerType(&TypeInfo::DECIMAL);
-            registerType(&TypeInfo::NATIVE_FUNCTION);
-            registerType(&TypeInfo::FUNCTION);
             registerType(&TypeInfo::ANY);
-            registerType(&TypeInfo::_NAN);
-            registerType(&TypeInfo::_VOID);
-
-            TypeInfo::STRING.addProperty("length", &TypeInfo::NATIVE_FUNCTION);
+            registerType(&TypeInfo::T_VOID);
         }
 
         TypeInfo *findTypeByName(string name) {
