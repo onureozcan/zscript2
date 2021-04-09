@@ -47,18 +47,17 @@ namespace zero {
         return nullptr;
     }
 
-    string Operator::getReturnType(Operator *op, vector<string> operandTypes) {
+    string Operator::getReturnType(Operator *op, string type1, string type2) {
         if (op == &ASSIGN) {
-            string type1 = operandTypes[0];
-            string type2 = operandTypes[1];
             if (strcmp(type1.c_str(), type2.c_str()) == 0) {
                 return type1;
             }
         }
-        string typesStr;
-        for (auto &piece: operandTypes) {
-            typesStr += piece + " ";
-        }
-        throw runtime_error("operator `" + op->name + "` does not work on types [ " + typesStr + "]");
+        throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "` and `" + type2 + "`");
+    }
+
+    string Operator::getReturnType(Operator *op, string type1) {
+
+        throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "`");
     }
 }

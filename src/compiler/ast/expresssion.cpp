@@ -104,8 +104,11 @@ namespace zero {
                 if (atom->atomicType == AtomicExpressionAstNode::TYPE_FUNCTION) {
                     auto function = ((FunctionAstNode *) atom);
                     string argsStr;
-                    for (const auto &piece : *function->arguments) argsStr += piece;
-                    return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() + "}" +
+                    for (const auto &piece : *function->arguments) {
+                        argsStr += piece.first + ":" + piece.second + ",";
+                    }
+                    return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() +
+                           "}" +
                            typeInfoStr(this->typeName) + ")";
                 } else {
                     return "(" + atom->data + typeInfoStr(this->typeName) + ")";

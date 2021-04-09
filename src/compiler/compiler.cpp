@@ -49,14 +49,10 @@ namespace zero {
         }
 
         void extractAndRegisterTypeMetadata(ProgramAstNode *program) {
-            // TODO: iterate over all the functions and extract type info
-            // this will be helpful when we import some function from other files
-            // it also allow us to use a class that is later defined in the file
-
-            FunctionAstNode* globalWrapper = new FunctionAstNode();
+            auto *globalWrapper = new FunctionAstNode();
             globalWrapper->program = program;
-            globalWrapper->identifier = "global";
             globalWrapper->fileName = program->fileName;
+            globalWrapper->arguments = new vector<pair<string, string>>();
             globalWrapper->pos = 0;
             globalWrapper->line = 0;
 

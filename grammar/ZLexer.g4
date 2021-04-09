@@ -36,6 +36,7 @@ OR: '||';
 CMP_EQ: '==';
 CMP_NE: '!=';
 EX: '!';
+DOUBLE_DOT: ':';
 
 VAR: 'var';
 FUN: 'fun';

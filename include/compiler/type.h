@@ -31,6 +31,8 @@ namespace zero {
 
         explicit TypeInfo(string name);
 
+        void addParameter(TypeInfo *type);
+
         void addProperty(string name, TypeInfo *type);
 
         PropertyDescriptor *getProperty(string name);

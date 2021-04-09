@@ -11,7 +11,10 @@ namespace zero {
         variable->line = variableDeclarationContext->getStart()->getLine();
         variable->pos = variableDeclarationContext->getStart()->getCharPositionInLine();
 
-        variable->identifier = variableDeclarationContext->IDENT()->getText();
+        variable->identifier = variableDeclarationContext->typedIdent()->ident->getText();
+        if (variableDeclarationContext->typedIdent()->type != nullptr) {
+            variable->typeName = variableDeclarationContext->typedIdent()->type->getText();
+        }
 
         if (variableDeclarationContext->expression() != nullptr) {
             variable->initialValue = ExpressionAstNode::from(variableDeclarationContext->expression(), fileName);

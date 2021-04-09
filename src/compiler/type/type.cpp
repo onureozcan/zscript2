@@ -14,14 +14,23 @@ namespace zero {
     class TypeInfo::Impl {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
+        vector<TypeInfo *> typeParameters;
         int indexCounter = 0;
     public:
+
+        Impl() {
+
+        }
+
         void addProperty(string name, TypeInfo *pInfo) {
-            auto descriptor = new PropertyDescriptor();
-            descriptor->name = pInfo->name;
-            descriptor->typeInfo = pInfo;
-            descriptor->index = indexCounter++;
-            propertiesMap[name] = descriptor;
+            if (propertiesMap.find(name) == propertiesMap.end()) {
+                auto descriptor = new PropertyDescriptor();
+                descriptor->name = pInfo->name;
+                descriptor->typeInfo = pInfo;
+                descriptor->index = indexCounter++;
+                propertiesMap[name] = descriptor;
+            } else
+                throw runtime_error("property already defined : `" + name + "`");
         }
 
         PropertyDescriptor *getProperty(string name) {
@@ -29,6 +38,10 @@ namespace zero {
                 return propertiesMap[name];
             }
             return nullptr;
+        }
+
+        void addParameter(TypeInfo *pInfo) {
+            typeParameters.push_back(pInfo);
         }
     };
 
@@ -43,5 +56,9 @@ namespace zero {
 
     TypeInfo::PropertyDescriptor *TypeInfo::getProperty(string name) {
         return this->impl->getProperty(name);
+    }
+
+    void TypeInfo::addParameter(TypeInfo *type) {
+        return this->impl->addParameter(type);
     }
 }

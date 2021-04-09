@@ -73,6 +73,7 @@ namespace zero {
     class VariableAstNode : public BaseAstNode {
     public:
         string identifier;
+        string typeName;
         ExpressionAstNode *initialValue;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);
@@ -108,7 +109,7 @@ namespace zero {
     public:
         string identifier;
         ProgramAstNode *program;
-        vector<string> *arguments;
+        vector<pair<string,string>> *arguments;
 
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
     };

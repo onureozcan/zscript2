@@ -39,10 +39,15 @@ namespace zero {
         }
 
         void addContext(FunctionAstNode *function) {
-            auto newContext = new TypeInfo("function_context@" +
+            string argsStr;
+            for (const auto &piece : *function->arguments) argsStr += piece.first + ":" + piece.second + ",";
+            auto newContext = new TypeInfo("function<" + argsStr + ">@" +
                                            function->fileName + "(" + to_string(function->line) + "&" +
                                            to_string(function->pos) + ")");
             function->typeName = newContext->name;
+            for (const auto &piece : *function->arguments) {
+                newContext->addProperty(piece.first, typeOrError(piece.second));
+            }
             typeMetadataRepository->registerType(newContext);
             if (currentContext != nullptr)
                 newContext->addProperty("$parent", currentContext);
@@ -141,7 +146,7 @@ namespace zero {
                 visitExpression(binary->right);
             }
             try {
-                string returnTypeStr = Operator::getReturnType(op, {binary->left->typeName, binary->right->typeName});
+                string returnTypeStr = Operator::getReturnType(op, binary->left->typeName, binary->right->typeName);
                 binary->typeName = returnTypeStr;
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
@@ -173,6 +178,14 @@ namespace zero {
             binary->isLvalue = right->isLvalue;
         }
 
+        void visitUnary(PrefixExpressionAstNode *unary) {
+
+        }
+
+        void visitFunctionCall(FunctionCallExpressionAstNode *call) {
+
+        }
+
         void visitExpression(ExpressionAstNode *expression) {
             switch (expression->expressionType) {
                 case ExpressionAstNode::TYPE_ATOMIC : {
@@ -181,6 +194,12 @@ namespace zero {
                 }
                 case ExpressionAstNode::TYPE_BINARY: {
                     visitBinary((BinaryExpressionAstNode *) expression);
+                }
+                case ExpressionAstNode::TYPE_UNARY: {
+                    visitUnary((PrefixExpressionAstNode *) expression);
+                }
+                case ExpressionAstNode::TYPE_FUNCTION_CALL: {
+                    visitFunctionCall((FunctionCallExpressionAstNode *) expression);
                 }
             }
         }

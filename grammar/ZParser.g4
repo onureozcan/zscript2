@@ -17,13 +17,17 @@ statement
         )? statementEnd;
 
 function
-        : (FUN|CLASS) LPAREN ((IDENT) (COMMA (IDENT))*)? RPAREN LCURLY
+        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN LCURLY
         program
         RCURLY
         ;
 
+typedIdent
+        : ident=IDENT (DOUBLE_DOT type=IDENT)?
+        ;
+
 variableDeclaration
-        : VAR IDENT (EQ expression)?
+        : VAR typedIdent (EQ expression)?
         ;
 
 expression

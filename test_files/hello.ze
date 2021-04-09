@@ -4,7 +4,10 @@ var main = fun() {
 	var b = 3
 	(print)(a+b)
 	a.length
-	var c = fun() {
+	var c = fun (x:int,y:String,z) {
+	    var b = "test 2" // this shadows variable b in the context chain
 	    a // this needs to be found in the context chain
+	    x // this needs to be found in args
 	}
+	c()
 }
