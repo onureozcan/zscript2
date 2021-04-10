@@ -16,7 +16,7 @@ namespace zero {
 
     //// --- IMPL
 
-    class CompilerImpl {
+    class Compiler::Impl {
     public:
         Program *compileFile(const string &fileName) {
             log.debug("compile called for '%s'", fileName.c_str());
@@ -41,6 +41,7 @@ namespace zero {
         Logger log = Logger("compiler");
         TypeMetadataRepository typeRepository;
         TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor(&typeRepository);
+        ByteCodeGenerator byteCodeGenerator = ByteCodeGenerator(&typeRepository);
 
         void doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);
@@ -66,7 +67,7 @@ namespace zero {
 
     //// --- PUBLIC
     Compiler::Compiler() {
-        impl = new CompilerImpl();
+        impl = new Compiler::Impl();
     }
 
     Program *Compiler::compileFile(const string &fileName) {

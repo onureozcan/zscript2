@@ -39,12 +39,12 @@ namespace zero {
                    to_string(currentAstNode->line);
         }
 
-        TypeInfo *getOrRegisterFunctionType(vector<string> argTypes, string returnType) {
+        TypeInfo *getOrRegisterFunctionType(vector<string> argTypes, string returnType, int isNative = 0) {
             string argsStr;
             for (const auto &argType: argTypes) {
                 argsStr += argType + ",";
             }
-            auto typeName = "fun<" + argsStr + returnType + ">";
+            auto typeName = string(isNative ? "native" : "fun") + "<" + argsStr + returnType + ">";
             TypeInfo *type = typeMetadataRepository->findTypeByName(typeName);
             if (type == nullptr) {
                 type = new TypeInfo(typeName, 1);
@@ -278,10 +278,10 @@ namespace zero {
             addContext(program);
             // native print function
             currentContext->addProperty("print",
-                                        getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name));
-            //native to string function
-            TypeInfo::INT.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name));
-            TypeInfo::DECIMAL.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name));
+                                        getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name, 1));
+            // native to string function
+            TypeInfo::INT.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
+            TypeInfo::DECIMAL.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
 
             auto statements = program->statements;
             for (auto stmt: *statements) {

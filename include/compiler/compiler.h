@@ -2,20 +2,34 @@
 
 #include <common/program.h>
 #include <string>
+#include "ast.h"
+#include "type_meta.h"
 
 using namespace std;
 
 namespace zero {
 
-    class CompilerImpl;
-
     class Compiler {
     public:
+        class Impl;
+
         Compiler();
 
         Program *compileFile(const string& fileName);
 
     private:
-        CompilerImpl* impl;
+        Impl* impl;
+    };
+
+    class ByteCodeGenerator {
+    public:
+        class Impl;
+
+        Program * generate(ProgramAstNode* programAstNode);
+
+        ByteCodeGenerator(TypeMetadataRepository* typeMetadataRepository);
+
+    private:
+        Impl* impl;
     };
 }
