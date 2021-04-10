@@ -7,7 +7,7 @@ using namespace std;
 namespace zero {
 
     enum OpType {
-        INT, DECIMAL, FNC, NATIVE, ANY
+        INT, DECIMAL, FNC, NATIVE, ANY, STRING, NA
     };
 
     enum Opcode {
@@ -19,6 +19,7 @@ namespace zero {
         JMP_LT,
         JMP_GTE,
         JMP_LTE,
+        MOV_I,
         MOV,
         CALL,
         ADD,

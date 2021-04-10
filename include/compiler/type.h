@@ -25,6 +25,7 @@ namespace zero {
 
         string name;
         int isCallable;
+        int isNative;
 
         static TypeInfo INT;
         static TypeInfo DECIMAL;
@@ -32,13 +33,13 @@ namespace zero {
         static TypeInfo ANY;
         static TypeInfo T_VOID;
 
-        explicit TypeInfo(string name, int isCallable);
+        explicit TypeInfo(string name, int isCallable, int isNative = 0);
 
         void addParameter(TypeInfo *type);
 
         vector<TypeInfo*> getParameters();
 
-        void addProperty(string name, TypeInfo *type);
+        unsigned int addProperty(string name, TypeInfo *type);
 
         int isAssignableFrom(TypeInfo* other);
 

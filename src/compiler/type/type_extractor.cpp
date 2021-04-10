@@ -118,7 +118,7 @@ namespace zero {
                 } else {
                     selectedType = initializedType;
                 }
-                currentContext->addProperty(variable->identifier, selectedType);
+                variable->memoryIndex = currentContext->addProperty(variable->identifier, selectedType);
                 variable->typeName = selectedType->name;
             }
         }
@@ -347,6 +347,7 @@ namespace zero {
                 visitStatement(stmt);
             }
 
+            contextStack.pop_back();
             functionsStack.pop_back();
         }
     };

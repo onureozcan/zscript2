@@ -15,13 +15,14 @@ namespace zero {
         int indexCounter = 0;
     public:
 
-        void addProperty(string name, TypeInfo *pInfo) {
+        unsigned int addProperty(string name, TypeInfo *pInfo) {
             if (propertiesMap.find(name) == propertiesMap.end()) {
                 auto descriptor = new PropertyDescriptor();
                 descriptor->name = pInfo->name;
                 descriptor->typeInfo = pInfo;
                 descriptor->index = indexCounter++;
                 propertiesMap[name] = descriptor;
+                return descriptor->index;
             } else
                 throw runtime_error("property already defined : `" + name + "`");
         }
@@ -42,14 +43,15 @@ namespace zero {
         }
     };
 
-    TypeInfo::TypeInfo(string name, int isCallable) {
+    TypeInfo::TypeInfo(string name, int isCallable, int isNative) {
         this->name = name;
         this->isCallable = isCallable;
+        this->isNative = isNative;
         this->impl = new Impl();
     }
 
-    void TypeInfo::addProperty(string name, TypeInfo *type) {
-        this->impl->addProperty(name, type);
+    unsigned int TypeInfo::addProperty(string name, TypeInfo *type) {
+        return this->impl->addProperty(name, type);
     }
 
     TypeInfo::PropertyDescriptor *TypeInfo::getProperty(string name) {

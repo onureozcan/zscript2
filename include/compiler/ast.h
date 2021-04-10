@@ -25,8 +25,8 @@ namespace zero {
 
         string typeName = "?";
 
-        int memoryIndex; // memory index in the current context
-        int memoryDepth; // how many contexts i need to go up to find this property - only relevant for direct access
+        unsigned int memoryIndex; // memory index in the current context
+        unsigned int memoryDepth; // how many contexts i need to go up to find this property - only relevant for direct access
 
         int isLvalue;
 
@@ -75,6 +75,7 @@ namespace zero {
         string identifier;
         string typeName;
         int hasExplicitTypeInfo;
+        unsigned int memoryIndex;
         ExpressionAstNode *initialValue;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);

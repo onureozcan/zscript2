@@ -45,16 +45,17 @@ namespace zero {
 
         void doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);
-            log.debug("ast :\n %s", programAst->toString().c_str());
-            generateByteCode(programAst);
+            log.debug("ast :\n%s", programAst->toString().c_str());
+            auto program = generateByteCode(programAst);
+            log.debug("program :\n%s", program->toString().c_str());
         }
 
         void extractAndRegisterTypeMetadata(ProgramAstNode *program) {
             metadataExtractor.extractAndRegister(program);
         }
 
-        void generateByteCode(ProgramAstNode *pNode) {
-
+        Program *generateByteCode(ProgramAstNode *pNode) {
+            return byteCodeGenerator.generate(pNode);
         }
 
         static string readFile(const string &fileName) {

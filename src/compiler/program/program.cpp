@@ -23,15 +23,17 @@ namespace zero {
         static string opTypeToString(unsigned int opType) {
             switch ((OpType) opType) {
                 case DECIMAL:
-                    return "DECIMAL";
+                    return "_DECIMAL";
                 case FNC:
-                    return "FNC";
+                    return "_FNC";
                 case INT:
-                    return "INT";
+                    return "_INT";
                 case NATIVE:
-                    return "NATIVE";
+                    return "_NATIVE";
                 case ANY:
-                    return "ANY";
+                    return "_ANY";
+                case STRING:
+                    return "_STRING";
                 default:
                     return "";
             };
@@ -57,6 +59,8 @@ namespace zero {
                     return "JMP_LTE";
                 case MOV:
                     return "MOV";
+                case MOV_I:
+                    return "MOV_I";
                 case ADD:
                     return "ADD";
                 case DIV:
@@ -82,11 +86,13 @@ namespace zero {
 
         string toString() {
             string instructionCode;
-            for (auto labelInsPair: instructions) {
+            for (const auto &labelInsPair: instructions) {
                 auto ins = labelInsPair.second;
                 auto label = labelInsPair.first;
-                instructionCode += label + ":" +
-                                   opcodeToString(ins.opCode) + "_" + opTypeToString(ins.opType) + " " +
+                instructionCode += (label.empty() ? "" : label + ":") +
+                                   opcodeToString(ins.opCode) + " " +
+                                   opTypeToString(ins.opType) +
+                                   " " +
                                    to_string(ins.operand1) +
                                    " " + to_string(ins.operand2) +
                                    " " + to_string(ins.destination) + "\n";
