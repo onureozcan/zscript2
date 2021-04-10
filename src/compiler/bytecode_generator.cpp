@@ -1,7 +1,6 @@
 #include <common/program.h>
 #include <compiler/compiler.h>
 #include <common/logger.h>
-#include <compiler/type_meta.h>
 
 using namespace std;
 
