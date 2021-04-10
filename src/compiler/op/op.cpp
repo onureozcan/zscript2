@@ -78,7 +78,11 @@ namespace zero {
     }
 
     string Operator::getReturnType(Operator *op, string type1) {
-
+        if (op == &Operator::NEG) {
+            if (type1 == TypeInfo::DECIMAL.name || type1 == TypeInfo::INT.name) {
+                return type1;
+            }
+        }
         throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "`");
     }
 }

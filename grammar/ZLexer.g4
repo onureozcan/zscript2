@@ -41,6 +41,7 @@ DOUBLE_DOT: ':';
 VAR: 'var';
 FUN: 'fun';
 CLASS: 'class';
+RET: 'return';
 
 INT             : '0'|[1-9][0-9]* ;
 DECIMAL         : [0-9][0-9]* '.' [0-9]+ ;

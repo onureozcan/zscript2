@@ -27,6 +27,7 @@ namespace zero {
         TypeInfo *currentContext = nullptr;
         BaseAstNode *currentAstNode = nullptr;
         vector<TypeInfo *> contextStack;
+        vector<FunctionAstNode *> functionsStack;
 
         void errorExit(string error) {
             log.error(error.c_str());
@@ -196,7 +197,15 @@ namespace zero {
         }
 
         void visitUnary(PrefixExpressionAstNode *unary) {
-
+            currentAstNode = unary;
+            visitExpression(unary->right);
+            auto op = opOrError(unary->opName, 1);
+            try {
+                string returnTypeStr = Operator::getReturnType(op, unary->right->typeName);
+                unary->typeName = returnTypeStr;
+            } catch (runtime_error e) {
+                errorExit(e.what() + currentNodeInfoStr());
+            }
         }
 
         void visitFunctionCall(FunctionCallExpressionAstNode *call) {
@@ -280,17 +289,44 @@ namespace zero {
             }
         }
 
+        void visitReturn(StatementAstNode *stmt) {
+            currentAstNode = stmt;
+            if (functionsStack.empty()) {
+                errorExit("return outside of function " + currentNodeInfoStr());
+            }
+
+            auto currentFunction = functionsStack.at(functionsStack.size() - 1);
+
+            auto returnTypeName = TypeInfo::T_VOID.name;
+            if (stmt->expression != nullptr) {
+                visitExpression(stmt->expression);
+                returnTypeName = stmt->expression->typeName;
+            }
+
+            auto functionType = typeOrError(currentFunction->typeName);
+            auto expectedReturnType = functionType->getParameters().back();
+
+            if (!expectedReturnType->isAssignableFrom(typeOrError(returnTypeName))) {
+                errorExit("cannot return `" + returnTypeName + "` from a function that returns `" +
+                          expectedReturnType->name + "` " + currentNodeInfoStr());
+            }
+        }
+
         void visitStatement(StatementAstNode *stmt) {
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
                 visitExpression(stmt->expression);
+            } else if (stmt->type == StatementAstNode::TYPE_RETURN) {
+                visitReturn(stmt);
             } else {
                 visitVariable(stmt->variable);
             }
         }
 
         void visitFunction(FunctionAstNode *function) {
+            functionsStack.push_back(function);
             currentAstNode = function;
             addContext(function);
+
             // register arguments to current context
             for (const auto &piece : *function->arguments) {
                 currentContext->addProperty(piece.first, typeOrError(piece.second));
@@ -310,6 +346,8 @@ namespace zero {
             for (auto stmt: *statements) {
                 visitStatement(stmt);
             }
+
+            functionsStack.pop_back();
         }
     };
 

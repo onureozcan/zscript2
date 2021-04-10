@@ -3,9 +3,6 @@
 
 namespace zero {
 
-    int StatementAstNode::TYPE_EXPRESSION = 0;
-    int StatementAstNode::TYPE_VARIABLE_DECLARATION = 1;
-
     StatementAstNode *StatementAstNode::from(ZParser::StatementContext *statementContext, string fileName) {
         auto *statement = new StatementAstNode();
 
@@ -16,6 +13,11 @@ namespace zero {
         if (statementContext->variableDeclaration() != nullptr) {
             statement->type = TYPE_VARIABLE_DECLARATION;
             statement->variable = VariableAstNode::from(statementContext->variableDeclaration(), fileName);
+        } else if (statementContext->ret != nullptr) {
+            statement->type = TYPE_RETURN;
+            if (statementContext->expression() != nullptr) {
+                statement->expression = ExpressionAstNode::from(statementContext->expression(), fileName);
+            }
         } else if (statementContext->expression() != nullptr) {
             statement->type = TYPE_EXPRESSION;
             statement->expression = ExpressionAstNode::from(statementContext->expression(), fileName);
@@ -29,6 +31,8 @@ namespace zero {
     string StatementAstNode::toString() {
         if (type == TYPE_EXPRESSION) {
             return expression->toString();
+        } else if (type == TYPE_RETURN) {
+            return "return " + (expression == nullptr ? "" : expression->toString());
         } else {
             return variable->toString();
         }

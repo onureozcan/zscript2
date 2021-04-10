@@ -13,7 +13,8 @@ program
 
 statement
         : (expression
-        |variableDeclaration
+        | variableDeclaration
+        | ret=RET expression?
         )? statementEnd;
 
 function

@@ -1,13 +1,19 @@
 var main = fun() {
 	print("hello world!")
+
 	var a = "test"
 	var b = 3
 	b.toString()
 	print(a + (2 * 3).toString())
+
 	var c = fun (x:decimal,y:String,z):String {
 	    var b = "test 2" // this shadows variable b in the context chain
 	    a // this needs to be found in the context chain
 	    x // this needs to be found in args
 	}
 	c(10, "test", 0)
+
+	var negFnc = fun(num:decimal):decimal {
+	    return -num
+	}
 }

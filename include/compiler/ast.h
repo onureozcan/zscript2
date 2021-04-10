@@ -88,8 +88,9 @@ namespace zero {
         VariableAstNode *variable;
         int type;
 
-        static int TYPE_EXPRESSION;
-        static int TYPE_VARIABLE_DECLARATION;
+        static const int TYPE_EXPRESSION = 0;
+        static const int TYPE_VARIABLE_DECLARATION = 1;
+        static const int TYPE_RETURN = 2;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 
