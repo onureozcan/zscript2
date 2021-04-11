@@ -11,7 +11,8 @@ namespace zero {
     };
 
     enum Opcode {
-        NOP,
+        LABEL,
+        FN_ENTER,
         JMP,
         JMP_EQ,
         JMP_NEQ,
@@ -36,9 +37,19 @@ namespace zero {
     public:
         unsigned short opCode;
         unsigned short opType;
-        unsigned int operand1;
-        unsigned int operand2;
-        unsigned int destination;
+        union {
+            unsigned int operand1;
+            void *operand1AsPtr;
+        };
+        union {
+            unsigned int operand2;
+            void *operand2AsPtr;
+        };
+        union {
+            unsigned int destination;
+            void *destinationAsPtr;
+        };
+        string comment;
     };
 
     class Program {
@@ -48,6 +59,15 @@ namespace zero {
         Program(string fileName);
 
         void addInstruction(Instruction instruction);
+
+        // insert at a specific position
+        void addInstructionAt(Instruction instruction, string label);
+
+        void addLabel(string label);
+
+        void addConstant(string constant);
+
+        void merge(Program *another);
 
         string toString();
 

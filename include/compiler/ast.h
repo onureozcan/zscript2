@@ -103,6 +103,8 @@ namespace zero {
     public:
         vector<StatementAstNode *> *statements;
 
+        string contextObjectTypeName;
+
         static ProgramAstNode *from(ZParser::ProgramContext *programContext, string fileName);
 
         string toString() override;

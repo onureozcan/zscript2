@@ -39,10 +39,10 @@ namespace zero {
             };
         }
 
-        static string opcodeToString(unsigned int opcode) {
+        static string opCodeToString(unsigned int opcode) {
             switch ((Opcode) opcode) {
-                case NOP:
-                    return "NOP";
+                case FN_ENTER:
+                    return "FN_ENTER";
                 case JMP:
                     return "JMP";
                 case JMP_EQ:
@@ -87,17 +87,47 @@ namespace zero {
         string toString() {
             string instructionCode;
             for (const auto &labelInsPair: instructions) {
+
                 auto ins = labelInsPair.second;
                 auto label = labelInsPair.first;
-                instructionCode += (label.empty() ? "" : label + ":") +
-                                   opcodeToString(ins.opCode) + " " +
-                                   opTypeToString(ins.opType) +
-                                   " " +
-                                   to_string(ins.operand1) +
-                                   " " + to_string(ins.operand2) +
-                                   " " + to_string(ins.destination) + "\n";
+
+                if (ins.opCode == LABEL) {
+                    instructionCode += label + ":\n";
+                    continue;
+                }
+
+                auto op1Str = to_string(ins.operand1);
+                auto op2Str = to_string(ins.operand2);
+                auto destinationStr = to_string(ins.destination);
+                auto opcodeStr = opCodeToString(ins.opCode);
+                auto opTypeStr = opTypeToString(ins.opType);
+
+                if (ins.opType == FNC) {
+                    op1Str = *(string *) ins.operand1AsPtr;
+                }
+                instructionCode +=
+                        "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t#" +
+                        ins.comment + "\n";
             }
-            return fileName + ":\n" + instructionCode;
+            return instructionCode;
+        }
+
+        void merge(Program *other) {
+            for (auto &labelInsPair: other->impl->instructions) {
+                this->instructions.push_back(labelInsPair);
+            }
+        }
+
+        void addInstructionAt(Instruction instruction, string labelToFind) {
+            int i = 0;
+            for (const auto &labelInsPair: instructions) {
+                i++;
+                auto label = labelInsPair.first;
+                if (label == labelToFind) {
+                    this->instructions.insert(this->instructions.begin() + i, {"", instruction});
+                    break;
+                }
+            }
         }
     };
 
@@ -111,5 +141,17 @@ namespace zero {
 
     string Program::toString() {
         return impl->toString();
+    }
+
+    void Program::addLabel(string label) {
+        return impl->addInstruction({LABEL}, label);
+    }
+
+    void Program::merge(Program *other) {
+        impl->merge(other);
+    }
+
+    void Program::addInstructionAt(Instruction instruction, string label) {
+        impl->addInstructionAt(instruction, label);
     }
 }

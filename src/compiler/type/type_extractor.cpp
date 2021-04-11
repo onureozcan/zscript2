@@ -101,9 +101,10 @@ namespace zero {
 
         void visitVariable(VariableAstNode *variable) {
             currentAstNode = variable;
+            auto parentContext = currentContext;
             auto expectedType = typeOrError(variable->typeName);
             if (variable->initialValue == nullptr) {
-                currentContext->addProperty(variable->identifier, expectedType);
+                variable->memoryIndex = parentContext->addProperty(variable->identifier, expectedType);
             } else {
                 visitExpression(variable->initialValue);
                 auto initializedType = typeOrError(variable->initialValue->typeName);
@@ -118,7 +119,7 @@ namespace zero {
                 } else {
                     selectedType = initializedType;
                 }
-                variable->memoryIndex = currentContext->addProperty(variable->identifier, selectedType);
+                variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
                 variable->typeName = selectedType->name;
             }
         }
@@ -262,11 +263,12 @@ namespace zero {
         }
 
 
-        void addContext(BaseAstNode *ast) {
+        void addContext(ProgramAstNode *ast) {
             auto newContext = new TypeInfo("FunContext@" +
                                            ast->fileName + "(" + to_string(ast->line) + "&" +
                                            to_string(ast->pos) + ")", 0);
             typeMetadataRepository->registerType(newContext);
+            ast->contextObjectTypeName = newContext->name;
             if (currentContext != nullptr)
                 newContext->addProperty("$parent", currentContext);
             contextStack.push_back(newContext);
@@ -325,7 +327,7 @@ namespace zero {
         void visitFunction(FunctionAstNode *function) {
             functionsStack.push_back(function);
             currentAstNode = function;
-            addContext(function);
+            addContext(function->program);
 
             // register arguments to current context
             for (const auto &piece : *function->arguments) {

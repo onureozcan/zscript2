@@ -6,19 +6,78 @@ using namespace std;
 
 namespace zero {
 
+    class TempVariableAllocator {
+    private:
+        map<int, int> tempVariableOccupancyMap; // temp variable index - occupied map
+        TypeInfo *contextObj;
+    public:
+
+        explicit TempVariableAllocator(TypeInfo *contextObj) {
+            this->contextObj = contextObj;
+        }
+
+        unsigned int size() {
+            return tempVariableOccupancyMap.size();
+        }
+
+        unsigned int alloc() {
+            unsigned int freeIndex = 0;
+            for (auto &entry: tempVariableOccupancyMap) {
+                if (entry.second == 0) {
+                    freeIndex = entry.first;
+                    break;
+                }
+            }
+            if (freeIndex != 0) {
+                tempVariableOccupancyMap[freeIndex] = 1;
+                return freeIndex;
+            } else {
+                // alloc new
+                unsigned int index = contextObj->addProperty("$temp_" + to_string(tempVariableOccupancyMap.size()),
+                                                             &TypeInfo::ANY);
+                tempVariableOccupancyMap[index] = 1;
+                return index;
+            }
+        }
+
+        unsigned int releaseTemp(unsigned int variableIndex) {
+            tempVariableOccupancyMap[variableIndex] = 0;
+        }
+    };
+
+    static const char *const programEntryLabel = " .programEntry";
+
     class ByteCodeGenerator::Impl {
 
     public:
-        TypeMetadataRepository *typeMetadataRepository;
+        TypeMetadataRepository *typeMetadataRepository = nullptr;
 
         Program *generate(ProgramAstNode *programAstNode) {
-            return doGeneratorCode(programAstNode);
+            return doGenerateCode(programAstNode);
         }
 
     private:
         Logger log = Logger("bytecode_generator");
         BaseAstNode *currentAstNode = nullptr;
-        Program *program;
+
+        Program *rootProgram = nullptr;
+        vector<Program *> subroutinePrograms; // list of subroutines created so far
+
+        vector<Program *> programsStack; // to keep track of current program
+        vector<ProgramAstNode *> programAstStack; // to keep track of current program ast
+        vector<TempVariableAllocator> tempVariableAllocatorStack;
+
+        Program *currentProgram() {
+            return programsStack.back();
+        }
+
+        ProgramAstNode *currentProgramAst() {
+            return programAstStack.back();
+        }
+
+        TempVariableAllocator currentTempVariableAllocator() {
+            return tempVariableAllocatorStack.back();
+        }
 
         void errorExit(string error) {
             log.error(error.c_str());
@@ -34,29 +93,139 @@ namespace zero {
             return typeMetadataRepository->findTypeByName(name);
         }
 
-        Program *doGeneratorCode(ProgramAstNode *programAstNode) {
-            program = new Program(programAstNode->fileName);
+        Program *doGenerateCode(ProgramAstNode *programAstNode) {
+            rootProgram = addSubroutineProgram(programAstNode, &programAstNode->fileName);
+            tempVariableAllocatorStack.emplace_back(type(programAstNode->contextObjectTypeName));
+
             auto statements = programAstNode->statements;
             for (auto stmt: *statements) {
                 visitStatement(stmt);
             }
-            return program;
+
+            for (auto &sub: subroutinePrograms) {
+                if (sub != rootProgram)
+                    rootProgram->merge(sub);
+            }
+
+            return rootProgram;
         }
 
-        void visitExpression(ExpressionAstNode *expression) {
 
+        Program *addSubroutineProgram(ProgramAstNode *programAstNode, string *label) {
+            auto sub = new Program(programAstNode->fileName);
+            sub->addLabel(*label);
+            sub->addLabel(programEntryLabel);
+            subroutinePrograms.push_back(sub);
+            programsStack.push_back(sub);
+            programAstStack.push_back(programAstNode);
+            return sub;
         }
 
-        void visitReturn(StatementAstNode *stmt) {
+        unsigned int visitFunction(FunctionAstNode *function,
+                                   unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            // -- entry
+            TypeInfo *contextObjectType = type(currentProgramAst()->contextObjectTypeName);
+            tempVariableAllocatorStack.emplace_back(contextObjectType);
 
+            currentAstNode = function;
+
+            auto *fnLabel = new string("fun@" + to_string(function->line) + "_" + to_string(function->pos));
+
+            unsigned int labelAsValue = ((unsigned int) fnLabel);
+            currentProgram()->addInstruction(
+                    {MOV, FNC, labelAsValue, 0, preferredIndex,
+                     "mov function address to index " + to_string(preferredIndex) + " in the current frame"
+                    });
+
+            addSubroutineProgram(function->program, fnLabel);
+            // --- function body
+
+            for (auto &stmt:*function->program->statements) {
+                visitStatement(stmt);
+            }
+
+            // ----- exit
+            unsigned int functionContextObjectSize =
+                    contextObjectType->getPropertyCount() + currentTempVariableAllocator().size();
+
+            tempVariableAllocatorStack.pop_back();
+
+            currentProgram()->addInstructionAt(
+                    {FN_ENTER, NA, functionContextObjectSize, 0, 0,
+                     "allocate call frame that is " + to_string(functionContextObjectSize) + " values big"},
+                    programEntryLabel);
+
+            programsStack.pop_back();
+
+            return preferredIndex;
         }
 
-        void cast(TypeInfo *t1, TypeInfo *t2) {
+        unsigned int visitAtom(AtomicExpressionAstNode *atomic,
+                               unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            currentAstNode = atomic;
+            switch (atomic->atomicType) {
+                case AtomicExpressionAstNode::TYPE_DECIMAL: {
+                    break;
+                }
+                case AtomicExpressionAstNode::TYPE_INT: {
+                    break;
+                }
+                case AtomicExpressionAstNode::TYPE_STRING: {
+                    break;
+                }
+                case AtomicExpressionAstNode::TYPE_FUNCTION: {
+                    return visitFunction((FunctionAstNode *) atomic, preferredIndex);
+                }
+                case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
+                    break;
+                }
+            }
+            return atomic->memoryIndex;
+        }
+
+        unsigned int visitFunctionCall(FunctionCallExpressionAstNode *function) {
+            return 0;
+        }
+
+        unsigned int visitExpression(ExpressionAstNode *expression,
+                                     unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            switch (expression->expressionType) {
+                case ExpressionAstNode::TYPE_ATOMIC : {
+                    return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex);
+                }
+                case ExpressionAstNode::TYPE_BINARY: {
+                    //return visitBinary((BinaryExpressionAstNode *) expression);
+                    break;
+                }
+                case ExpressionAstNode::TYPE_UNARY: {
+                    //return visitUnary((PrefixExpressionAstNode *) expression);
+                    break;
+                }
+                case ExpressionAstNode::TYPE_FUNCTION_CALL: {
+                    //return visitFunctionCall((FunctionCallExpressionAstNode *) expression);
+                    break;
+                }
+            }
+            return expression->memoryIndex;
+        }
+
+        unsigned int visitReturn(StatementAstNode *stmt) {
+            unsigned int valueIndex = 0;
+            if (stmt->expression != nullptr) {
+                valueIndex = visitExpression(stmt->expression);
+            }
+            currentProgram()->addInstruction(
+                    {RET, NA, NA, valueIndex, 0, "return value at " + to_string(valueIndex)});
+            return valueIndex;
+        }
+
+        void cast(unsigned int valueIndex, TypeInfo *t1, TypeInfo *t2) {
             if (t1 != t2) {
                 if (t1 == &TypeInfo::INT && t2 == &TypeInfo::DECIMAL) {
-                    // TODO
-                } else {
-                    errorExit("cast from `" + t1->name + "` to `" + t2->name + "` is not yet implemented, sorry");
+                    currentProgram()->addInstruction({CAST_F, NA, valueIndex, 0, valueIndex});
                 }
             }
         }
@@ -83,14 +252,26 @@ namespace zero {
         void visitVariable(VariableAstNode *variable) {
             auto destinationIndex = variable->memoryIndex;
             auto expectedType = type(variable->typeName);
+
             if (variable->initialValue != nullptr) {
-                visitExpression(variable->initialValue);
+                unsigned int requestedValueIndex = destinationIndex;
+                unsigned int actualValueIndex = visitExpression(variable->initialValue, requestedValueIndex);
+
                 auto actualType = type(variable->initialValue->typeName);
-                cast(actualType, expectedType);
-                program->addInstruction({MOV, NA, variable->initialValue->memoryIndex, 0, destinationIndex});
+                cast(actualValueIndex, actualType, expectedType);
+
+                if (requestedValueIndex != actualValueIndex) {
+                    currentProgram()->addInstruction(
+                            {MOV, NA, actualValueIndex, 0, destinationIndex,
+                             "mov value at index " + to_string(actualValueIndex) + " into index " +
+                             to_string(destinationIndex) + " (" + variable->identifier + ")"
+                            });
+                }
+
             } else {
-                program->addInstruction({MOV_I, opType(variable->typeName), variable->initialValue->memoryIndex, 0,
-                                         destinationIndex});
+                currentProgram()->addInstruction(
+                        {MOV_I, opType(variable->typeName), variable->initialValue->memoryIndex, 0,
+                         destinationIndex});
             }
         }
 

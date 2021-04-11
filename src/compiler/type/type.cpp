@@ -41,6 +41,10 @@ namespace zero {
         vector<TypeInfo *> getParameters() {
             return typeParameters;
         }
+
+        int getPropertyCount() {
+            return propertiesMap.size();
+        }
     };
 
     TypeInfo::TypeInfo(string name, int isCallable, int isNative) {
@@ -80,5 +84,9 @@ namespace zero {
 
     vector<TypeInfo *> TypeInfo::getParameters() {
         return impl->getParameters();
+    }
+
+    int TypeInfo::getPropertyCount() {
+        return impl->getPropertyCount();
     }
 }

@@ -43,6 +43,8 @@ namespace zero {
 
         int isAssignableFrom(TypeInfo* other);
 
+        int getPropertyCount();
+
         PropertyDescriptor *getProperty(string name);
 
     private:
