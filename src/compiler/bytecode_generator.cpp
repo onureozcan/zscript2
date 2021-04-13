@@ -64,15 +64,17 @@ namespace zero {
         vector<Program *> subroutinePrograms; // list of subroutines created so far
 
         vector<Program *> programsStack; // to keep track of current program
-        vector<ProgramAstNode *> programAstStack; // to keep track of current program ast
+        vector<FunctionAstNode *> functionAstStack; // to keep track of current function ast
         vector<TempVariableAllocator> tempVariableAllocatorStack;
 
         Program *currentProgram() {
+            if (programsStack.empty()) return nullptr;
             return programsStack.back();
         }
 
-        ProgramAstNode *currentProgramAst() {
-            return programAstStack.back();
+        FunctionAstNode *currentFunctionAst() {
+            if (functionAstStack.empty()) return nullptr;
+            return functionAstStack.back();
         }
 
         TempVariableAllocator currentTempVariableAllocator() {
@@ -94,30 +96,38 @@ namespace zero {
         }
 
         Program *doGenerateCode(ProgramAstNode *programAstNode) {
-            rootProgram = addSubroutineProgram(programAstNode, &programAstNode->fileName);
-            tempVariableAllocatorStack.emplace_back(type(programAstNode->contextObjectTypeName));
+            auto globalFnc = new FunctionAstNode();
+            globalFnc->program = programAstNode;
+            globalFnc->arguments = new vector<pair<string, string>>();
+            globalFnc->fileName = programAstNode->fileName;
+            globalFnc->line = 0;
+            globalFnc->pos = 0;
 
-            auto statements = programAstNode->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitFunction(globalFnc);
 
+            rootProgram = new Program(programAstNode->fileName);
             for (auto &sub: subroutinePrograms) {
-                if (sub != rootProgram)
-                    rootProgram->merge(sub);
+                rootProgram->merge(sub);
             }
 
             return rootProgram;
         }
 
 
-        Program *addSubroutineProgram(ProgramAstNode *programAstNode, string *label) {
-            auto sub = new Program(programAstNode->fileName);
+        Program *onFunctionEnter(FunctionAstNode *functionAstNode, string *label) {
+            auto parentFunction = currentFunctionAst();
+            if (parentFunction != nullptr) {
+                // the parent does have a child, we (unfortunately) have to alloc its temporary variables from the heap!
+                parentFunction->isLeafFunction = false;
+            }
+
+            auto sub = new Program(functionAstNode->fileName);
             sub->addLabel(label);
             sub->addLabel(programEntryLabel);
             subroutinePrograms.push_back(sub);
             programsStack.push_back(sub);
-            programAstStack.push_back(programAstNode);
+            functionAstStack.push_back(functionAstNode);
+            functionAstNode->isLeafFunction = true; // set it as leaf for now
             return sub;
         }
 
@@ -125,23 +135,27 @@ namespace zero {
                                    unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
         ) {
             // -- entry
-            TypeInfo *contextObjectType = type(currentProgramAst()->contextObjectTypeName);
-            tempVariableAllocatorStack.emplace_back(contextObjectType);
-
             currentAstNode = function;
 
             auto *fnLabel = new string("fun@" + to_string(function->line) + "_" + to_string(function->pos));
 
-            currentProgram()->addInstruction(
-                    (new Instruction())->withOpCode(MOV)
-                            ->withOpType(FNC)
-                            ->withOp1(fnLabel)
-                            ->withDestination(preferredIndex)
-                            ->withComment("mov function address to index " + to_string(preferredIndex) +
-                                          " in the current frame")
-            );
+            auto parentProgram = currentProgram();
+            if (parentProgram != nullptr) { // global
+                // let the parent know about our address so that it can call us
+                parentProgram->addInstruction(
+                        (new Instruction())->withOpCode(MOV)
+                                ->withOpType(FNC)
+                                ->withOp1(fnLabel)
+                                ->withDestination(preferredIndex)
+                                ->withComment("mov function address to index " + to_string(preferredIndex) +
+                                              " in the current frame")
+                );
+            }
+            onFunctionEnter(function, fnLabel);
 
-            addSubroutineProgram(function->program, fnLabel);
+            TypeInfo *contextObjectType = type(currentFunctionAst()->program->contextObjectTypeName);
+            tempVariableAllocatorStack.emplace_back(contextObjectType);
+
             // --- function body
 
             for (auto &stmt:*function->program->statements) {
@@ -149,19 +163,23 @@ namespace zero {
             }
 
             // ----- exit
-            unsigned int functionContextObjectSize =
-                    contextObjectType->getPropertyCount() + currentTempVariableAllocator().size();
 
-            tempVariableAllocatorStack.pop_back();
+            auto tempVariableAllocator = currentTempVariableAllocator();
+
+            unsigned int functionContextObjectSize =
+                    contextObjectType->getPropertyCount() + tempVariableAllocator.size();
 
             currentProgram()->addInstructionAt(
-                    (new Instruction())->withOpCode(FN_ENTER)
+                    (new Instruction())->withOpCode(
+                                    currentFunctionAst()->isLeafFunction ? FN_ENTER_STACK : FN_ENTER_HEAP)
                             ->withOp1(functionContextObjectSize)
                             ->withComment("allocate call frame that is " + to_string(functionContextObjectSize) +
                                           " values big"),
                     *programEntryLabel);
 
+            tempVariableAllocatorStack.pop_back();
             programsStack.pop_back();
+            functionAstStack.pop_back();
 
             return preferredIndex;
         }

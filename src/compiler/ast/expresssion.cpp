@@ -107,7 +107,7 @@ namespace zero {
                     for (const auto &piece : *function->arguments) {
                         argsStr += piece.first + ":" + piece.second + ",";
                     }
-                    return "(fun" + function->identifier + "(" + argsStr + "){\n" + function->program->toString() +
+                    return "(fun(" + argsStr + "){\n" + function->program->toString() +
                            "}" +
                            typeInfoStr(this->typeName) + ")";
                 } else {

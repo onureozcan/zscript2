@@ -45,9 +45,9 @@ namespace zero {
 
         void doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);
-            log.debug("ast :\n%s", programAst->toString().c_str());
+            log.debug("\nast :\n%s", programAst->toString().c_str());
             auto program = generateByteCode(programAst);
-            log.debug("program :\n%s", program->toString().c_str());
+            log.debug("\nprogram :\n%s", program->toString().c_str());
         }
 
         void extractAndRegisterTypeMetadata(ProgramAstNode *program) {

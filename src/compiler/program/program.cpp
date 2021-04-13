@@ -29,8 +29,10 @@ namespace zero {
 
         static string opCodeToString(unsigned int opcode) {
             switch ((Opcode) opcode) {
-                case FN_ENTER:
-                    return "FN_ENTER";
+                case FN_ENTER_HEAP:
+                    return "FN_ENTER_HEAP";
+                case FN_ENTER_STACK:
+                    return "FN_ENTER_STACK";
                 case JMP:
                     return "JMP";
                 case JMP_EQ:
@@ -92,7 +94,7 @@ namespace zero {
             for (const auto &ins: instructions) {
                 instructionCode += ins->toString();
             }
-            return instructionCode;
+            return "program of file at `" + fileName + "`:\n" + instructionCode;
         }
 
         void merge(Program *other) {

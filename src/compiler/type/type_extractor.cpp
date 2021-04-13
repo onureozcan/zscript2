@@ -24,7 +24,6 @@ namespace zero {
 
         Logger log = Logger("type_extractor");
 
-        TypeInfo *currentContext = nullptr;
         BaseAstNode *currentAstNode = nullptr;
         vector<TypeInfo *> contextStack;
         vector<FunctionAstNode *> functionsStack;
@@ -37,6 +36,11 @@ namespace zero {
         string currentNodeInfoStr() {
             return " at " + currentAstNode->fileName + " line " +
                    to_string(currentAstNode->line);
+        }
+
+        TypeInfo *currentContext() {
+            if (contextStack.empty()) return nullptr;
+            return contextStack.back();
         }
 
         TypeInfo *getOrRegisterFunctionType(vector<string> argTypes, string returnType, int isNative = 0) {
@@ -77,14 +81,16 @@ namespace zero {
 
         LocalPropertyPointer findPropertyInContextChainOrError(string name) {
             int depth = 0;
-            TypeInfo *current = currentContext;
-            while (current != nullptr && depth <= contextStack.size()) {
+            TypeInfo *current = currentContext();
+            while (true) {
                 auto descriptor = current->getProperty(name);
                 if (descriptor != nullptr) {
                     return {depth, descriptor};
                 }
-                current = contextStack[contextStack.size() - depth - 1];
                 depth++;
+                if (depth <= contextStack.size())
+                    current = contextStack[contextStack.size() - depth];
+                else break;
             }
             errorExit("cannot find variable " + name + currentNodeInfoStr());
         }
@@ -101,14 +107,16 @@ namespace zero {
 
         void visitVariable(VariableAstNode *variable) {
             currentAstNode = variable;
-            auto parentContext = currentContext;
+            auto parentContext = currentContext();
             auto expectedType = typeOrError(variable->typeName);
+            auto selectedType = expectedType;
             if (variable->initialValue == nullptr) {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, expectedType);
+                log.debug("variable `%s`:`%s` added to context %s", variable->identifier.c_str(),
+                          expectedType->name.c_str(), parentContext->name.c_str());
             } else {
                 visitExpression(variable->initialValue);
                 auto initializedType = typeOrError(variable->initialValue->typeName);
-                TypeInfo *selectedType = nullptr;
                 if (variable->hasExplicitTypeInfo) {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
@@ -122,6 +130,8 @@ namespace zero {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
                 variable->typeName = selectedType->name;
             }
+            log.debug("\n\tvar `%s`:`%s` added to context %s", variable->identifier.c_str(),
+                      selectedType->name.c_str(), parentContext->name.c_str());
         }
 
         void visitAtom(AtomicExpressionAstNode *atomic) {
@@ -269,18 +279,17 @@ namespace zero {
                                            to_string(ast->pos) + ")", 0);
             typeMetadataRepository->registerType(newContext);
             ast->contextObjectTypeName = newContext->name;
-            if (currentContext != nullptr)
-                newContext->addProperty("$parent", currentContext);
+            if (currentContext() != nullptr)
+                newContext->addProperty("$parent", currentContext());
             contextStack.push_back(newContext);
-            currentContext = contextStack[contextStack.size() - 1];
         }
 
         void visitGlobal(ProgramAstNode *program) {
             currentAstNode = program;
             addContext(program);
             // native print function
-            currentContext->addProperty("print",
-                                        getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name, 1));
+            currentContext()->addProperty("print",
+                                          getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name, 1));
             // native to string function
             TypeInfo::INT.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
             TypeInfo::DECIMAL.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
@@ -331,7 +340,9 @@ namespace zero {
 
             // register arguments to current context
             for (const auto &piece : *function->arguments) {
-                currentContext->addProperty(piece.first, typeOrError(piece.second));
+                currentContext()->addProperty(piece.first, typeOrError(piece.second));
+                log.debug("\n\targument `%s`:`%s` added to context %s", piece.first.c_str(),
+                          piece.second.c_str(), currentContext()->name.c_str());
             }
 
             // create and register function type

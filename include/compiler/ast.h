@@ -112,10 +112,16 @@ namespace zero {
 
     class FunctionAstNode : public AtomicExpressionAstNode {
     public:
-        string identifier;
         ProgramAstNode *program;
         vector<pair<string, string>> *arguments;
         string returnTypeName;
+        // this one is important, let me explain:
+        // if a function has a function definition inside, it is perfectly legal for the child function to access variables in the "upper" scope
+        // in that case, we cannot simply destroy the parent function context. it is a well-known pattern of memory leak in js
+        // however, if the function does not have any functions defined inside, this possibility is eliminated
+        // and we can alloc local variables from the stack rather than the heap area
+        // this variable simply says is the function is a "leaf", meaning that does not have any child functions
+        int isLeafFunction;
 
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
     };

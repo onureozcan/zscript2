@@ -13,7 +13,8 @@ namespace zero {
     enum Opcode {
         NO_OPCODE,
         LABEL,
-        FN_ENTER,
+        FN_ENTER_HEAP,
+        FN_ENTER_STACK,
         JMP,
         JMP_EQ,
         JMP_NEQ,
