@@ -45,7 +45,7 @@ namespace zero {
         }
     };
 
-    static const char *const programEntryLabel = " .programEntry";
+    static string *programEntryLabel = new string(" .programEntry");
 
     class ByteCodeGenerator::Impl {
 
@@ -113,7 +113,7 @@ namespace zero {
 
         Program *addSubroutineProgram(ProgramAstNode *programAstNode, string *label) {
             auto sub = new Program(programAstNode->fileName);
-            sub->addLabel(*label);
+            sub->addLabel(label);
             sub->addLabel(programEntryLabel);
             subroutinePrograms.push_back(sub);
             programsStack.push_back(sub);
@@ -132,11 +132,14 @@ namespace zero {
 
             auto *fnLabel = new string("fun@" + to_string(function->line) + "_" + to_string(function->pos));
 
-            unsigned int labelAsValue = ((unsigned int) fnLabel);
             currentProgram()->addInstruction(
-                    {MOV, FNC, labelAsValue, 0, preferredIndex,
-                     "mov function address to index " + to_string(preferredIndex) + " in the current frame"
-                    });
+                    (new Instruction())->withOpCode(MOV)
+                            ->withOpType(FNC)
+                            ->withOp1(fnLabel)
+                            ->withDestination(preferredIndex)
+                            ->withComment("mov function address to index " + to_string(preferredIndex) +
+                                          " in the current frame")
+            );
 
             addSubroutineProgram(function->program, fnLabel);
             // --- function body
@@ -152,9 +155,11 @@ namespace zero {
             tempVariableAllocatorStack.pop_back();
 
             currentProgram()->addInstructionAt(
-                    {FN_ENTER, NA, functionContextObjectSize, 0, 0,
-                     "allocate call frame that is " + to_string(functionContextObjectSize) + " values big"},
-                    programEntryLabel);
+                    (new Instruction())->withOpCode(FN_ENTER)
+                            ->withOp1(functionContextObjectSize)
+                            ->withComment("allocate call frame that is " + to_string(functionContextObjectSize) +
+                                          " values big"),
+                    *programEntryLabel);
 
             programsStack.pop_back();
 
@@ -167,13 +172,37 @@ namespace zero {
             currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
-                    break;
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV)
+                                    ->withOpType(DECIMAL)
+                                    ->withOp1((float) atof(atomic->data.c_str()))
+                                    ->withDestination(preferredIndex)
+                                    ->withComment("load int into index " + to_string(preferredIndex) +
+                                                  " in the current frame")
+                    );
+                    return preferredIndex;
                 }
                 case AtomicExpressionAstNode::TYPE_INT: {
-                    break;
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV)
+                                    ->withOpType(INT)
+                                    ->withOp1((unsigned) (stoi(atomic->data)))
+                                    ->withDestination(preferredIndex)
+                                    ->withComment("load int into index " + to_string(preferredIndex) +
+                                                  " in the current frame")
+                    );
+                    return preferredIndex;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
-                    break;
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV)
+                                    ->withOpType(STRING)
+                                    ->withOp1(&(atomic->data))
+                                    ->withDestination(preferredIndex)
+                                    ->withComment("load string into index " + to_string(preferredIndex) +
+                                                  " in the current frame")
+                    );
+                    return preferredIndex;
                 }
                 case AtomicExpressionAstNode::TYPE_FUNCTION: {
                     return visitFunction((FunctionAstNode *) atomic, preferredIndex);
@@ -218,14 +247,22 @@ namespace zero {
                 valueIndex = visitExpression(stmt->expression);
             }
             currentProgram()->addInstruction(
-                    {RET, NA, NA, valueIndex, 0, "return value at " + to_string(valueIndex)});
+                    (new Instruction())->withOpCode(RET)
+                            ->withDestination(valueIndex)
+                            ->withComment("return value at " + to_string(valueIndex))
+            );
             return valueIndex;
         }
 
         void cast(unsigned int valueIndex, TypeInfo *t1, TypeInfo *t2) {
             if (t1 != t2) {
                 if (t1 == &TypeInfo::INT && t2 == &TypeInfo::DECIMAL) {
-                    currentProgram()->addInstruction({CAST_F, NA, valueIndex, 0, valueIndex});
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(CAST_F)
+                                    ->withOp1(valueIndex)
+                                    ->withDestination(valueIndex)
+                                    ->withComment("auto cast fromm int to float")
+                    );
                 }
             }
         }
@@ -262,16 +299,21 @@ namespace zero {
 
                 if (requestedValueIndex != actualValueIndex) {
                     currentProgram()->addInstruction(
-                            {MOV, NA, actualValueIndex, 0, destinationIndex,
-                             "mov value at index " + to_string(actualValueIndex) + " into index " +
-                             to_string(destinationIndex) + " (" + variable->identifier + ")"
-                            });
+                            (new Instruction())->withOpCode(MOV)
+                                    ->withOp1(actualValueIndex)
+                                    ->withDestination(destinationIndex)
+                                    ->withComment("mov value at index " + to_string(actualValueIndex) + " into index " +
+                                                  to_string(destinationIndex) + " (" + variable->identifier + ")")
+                    );
                 }
 
             } else {
                 currentProgram()->addInstruction(
-                        {MOV_I, opType(variable->typeName), variable->initialValue->memoryIndex, 0,
-                         destinationIndex});
+                        (new Instruction())->withOpCode(MOV_I)
+                                ->withOpType(opType(variable->typeName))
+                                ->withOp1(variable->initialValue->memoryIndex)
+                                ->withDestination(destinationIndex)
+                );
             }
         }
 

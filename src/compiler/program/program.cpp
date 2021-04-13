@@ -6,20 +6,8 @@ using namespace std;
 
 namespace zero {
 
-    class Program::Impl {
-    private:
-        string fileName;
-        vector<pair<string, Instruction>> instructions;
-
+    class Instruction::Impl {
     public:
-        Impl(string fileName) {
-            this->fileName = fileName;
-        }
-
-        void addInstruction(Instruction instruction, string label = "") {
-            instructions.push_back({label, instruction});
-        }
-
         static string opTypeToString(unsigned int opType) {
             switch ((OpType) opType) {
                 case DECIMAL:
@@ -83,31 +71,26 @@ namespace zero {
                     return "";
             };
         }
+    };
+
+    class Program::Impl {
+    private:
+        string fileName;
+        vector<Instruction *> instructions;
+
+    public:
+        Impl(string fileName) {
+            this->fileName = fileName;
+        }
+
+        void addInstruction(Instruction *instruction, string label = "") {
+            instructions.push_back(instruction);
+        }
 
         string toString() {
             string instructionCode;
-            for (const auto &labelInsPair: instructions) {
-
-                auto ins = labelInsPair.second;
-                auto label = labelInsPair.first;
-
-                if (ins.opCode == LABEL) {
-                    instructionCode += label + ":\n";
-                    continue;
-                }
-
-                auto op1Str = to_string(ins.operand1);
-                auto op2Str = to_string(ins.operand2);
-                auto destinationStr = to_string(ins.destination);
-                auto opcodeStr = opCodeToString(ins.opCode);
-                auto opTypeStr = opTypeToString(ins.opType);
-
-                if (ins.opType == FNC) {
-                    op1Str = *(string *) ins.operand1AsPtr;
-                }
-                instructionCode +=
-                        "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t#" +
-                        ins.comment + "\n";
+            for (const auto &ins: instructions) {
+                instructionCode += ins->toString();
             }
             return instructionCode;
         }
@@ -118,13 +101,13 @@ namespace zero {
             }
         }
 
-        void addInstructionAt(Instruction instruction, string labelToFind) {
+        void addInstructionAt(Instruction *instruction, string labelToFind) {
             int i = 0;
-            for (const auto &labelInsPair: instructions) {
+            for (const auto &ins: instructions) {
                 i++;
-                auto label = labelInsPair.first;
-                if (label == labelToFind) {
-                    this->instructions.insert(this->instructions.begin() + i, {"", instruction});
+                auto label = ins->operand1AsLabel;
+                if (ins->opCode == LABEL && label != nullptr && *label == labelToFind) {
+                    this->instructions.insert(this->instructions.begin() + i, instruction);
                     break;
                 }
             }
@@ -135,7 +118,7 @@ namespace zero {
         this->impl = new Impl(fileName);
     }
 
-    void Program::addInstruction(Instruction instruction) {
+    void Program::addInstruction(Instruction *instruction) {
         this->impl->addInstruction(instruction);
     }
 
@@ -143,15 +126,79 @@ namespace zero {
         return impl->toString();
     }
 
-    void Program::addLabel(string label) {
-        return impl->addInstruction({LABEL}, label);
+    void Program::addLabel(string *label) {
+        return impl->addInstruction((new Instruction())->withOpCode(LABEL)->withOp1(label));
     }
 
     void Program::merge(Program *other) {
         impl->merge(other);
     }
 
-    void Program::addInstructionAt(Instruction instruction, string label) {
+    void Program::addInstructionAt(Instruction *instruction, string label) {
         impl->addInstructionAt(instruction, label);
+    }
+
+    Instruction *Instruction::withOpCode(unsigned short opCode) {
+        this->opCode = opCode;
+        return this;
+    }
+
+    Instruction *Instruction::withOpType(unsigned short type) {
+        this->opType = type;
+        return this;
+    }
+
+    Instruction *Instruction::withOp1(unsigned int op1) {
+        this->operand1 = op1;
+        return this;
+    }
+
+    Instruction *Instruction::withOp1(string *label) {
+        this->operand1AsLabel = label;
+        return this;
+    }
+
+    Instruction *Instruction::withOp1(float decimal) {
+        this->operand1AsDecimal = decimal;
+        return this;
+    }
+
+    Instruction *Instruction::withOp2(unsigned int op) {
+        this->operand2 = op;
+        return this;
+    }
+
+    Instruction *Instruction::withDestination(unsigned int dest) {
+        this->destination = dest;
+        return this;
+    }
+
+    Instruction *Instruction::withComment(string comment) {
+        this->comment = comment;
+        return this;
+    }
+
+    string Instruction::toString() const {
+        if (opCode == LABEL) {
+            return *operand1AsLabel + ":\n";
+        }
+
+        auto op1Str = to_string(operand1);
+        auto op2Str = to_string(operand2);
+        auto destinationStr = to_string(destination);
+        auto opcodeStr = Instruction::Impl::opCodeToString(opCode);
+        auto opTypeStr = Instruction::Impl::opTypeToString(opType);
+
+        if (opType == FNC || opType == STRING) {
+            op1Str = *operand1AsLabel;
+        } else if (opType == DECIMAL) {
+            op1Str = to_string(operand1AsDecimal);
+        }
+        return "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t#" + comment +
+               "\n";
+    }
+
+    Instruction::Instruction() {
+        this->impl = new Impl();
     }
 }
