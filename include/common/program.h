@@ -30,8 +30,14 @@ namespace zero {
         DIV,
         MUL,
         MOD,
-        CMP,
+        CMP_EQ,
+        CMP_NEQ,
+        CMP_GT,
+        CMP_LT,
+        CMP_GTE,
+        CMP_LTE,
         CAST_F,
+        NEG,
         RET
     };
 

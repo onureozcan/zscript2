@@ -63,12 +63,24 @@ namespace zero {
                     return "RET";
                 case MUL:
                     return "MUL";
+                case CMP_EQ:
+                    return "CMP_EQ";
+                case CMP_NEQ:
+                    return "CMP_NEQ";
+                case CMP_GT:
+                    return "CMP_GT";
+                case CMP_GTE:
+                    return "CMP_GTE";
+                case CMP_LT:
+                    return "CMP_LT";
+                case CMP_LTE:
+                    return "CMP_LTE";
                 case CALL:
                     return "CALL";
-                case CMP:
-                    return "CMP";
                 case CAST_F:
                     return "CAST_F";
+                case NEG:
+                    return "NEG";
                 default:
                     return "";
             };
@@ -196,7 +208,7 @@ namespace zero {
         } else if (opType == DECIMAL) {
             op1Str = to_string(operand1AsDecimal);
         }
-        return "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t#" + comment +
+        return "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t# " + comment +
                "\n";
     }
 

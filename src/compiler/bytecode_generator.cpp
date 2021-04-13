@@ -1,6 +1,7 @@
 #include <common/program.h>
 #include <compiler/compiler.h>
 #include <common/logger.h>
+#include <compiler/op.h>
 
 using namespace std;
 
@@ -16,7 +17,7 @@ namespace zero {
             this->contextObj = contextObj;
         }
 
-        unsigned int size() {
+        unsigned int tempCount() {
             return tempVariableOccupancyMap.size();
         }
 
@@ -40,8 +41,8 @@ namespace zero {
             }
         }
 
-        unsigned int releaseTemp(unsigned int variableIndex) {
-            tempVariableOccupancyMap[variableIndex] = 0;
+        unsigned int release(unsigned int variableIndex) {
+            return tempVariableOccupancyMap[variableIndex] = 0;
         }
     };
 
@@ -58,14 +59,14 @@ namespace zero {
 
     private:
         Logger log = Logger("bytecode_generator");
-        BaseAstNode *currentAstNode = nullptr;
 
         Program *rootProgram = nullptr;
         vector<Program *> subroutinePrograms; // list of subroutines created so far
 
         vector<Program *> programsStack; // to keep track of current program
         vector<FunctionAstNode *> functionAstStack; // to keep track of current function ast
-        vector<TempVariableAllocator> tempVariableAllocatorStack;
+
+        map<string, TempVariableAllocator *> tempVariableAllocatorMap;
 
         Program *currentProgram() {
             if (programsStack.empty()) return nullptr;
@@ -77,22 +78,17 @@ namespace zero {
             return functionAstStack.back();
         }
 
-        TempVariableAllocator currentTempVariableAllocator() {
-            return tempVariableAllocatorStack.back();
-        }
-
-        void errorExit(string error) {
-            log.error(error.c_str());
-            exit(1);
-        }
-
-        string currentNodeInfoStr() {
-            return " at " + currentAstNode->fileName + " line " +
-                   to_string(currentAstNode->line);
+        TempVariableAllocator *currentTempVariableAllocator() {
+            auto currentContextType = currentFunctionAst()->program->contextObjectTypeName;
+            return tempVariableAllocatorMap[currentContextType];
         }
 
         TypeInfo *type(string name) {
             return typeMetadataRepository->findTypeByName(name);
+        }
+
+        Operator *getOp(string name, int operandCount) {
+            return Operator::getBy(name, operandCount);
         }
 
         Program *doGenerateCode(ProgramAstNode *programAstNode) {
@@ -128,6 +124,10 @@ namespace zero {
             programsStack.push_back(sub);
             functionAstStack.push_back(functionAstNode);
             functionAstNode->isLeafFunction = true; // set it as leaf for now
+
+            tempVariableAllocatorMap[functionAstNode->program->contextObjectTypeName] =
+                    (new TempVariableAllocator(type(functionAstNode->program->contextObjectTypeName)));
+
             return sub;
         }
 
@@ -135,8 +135,6 @@ namespace zero {
                                    unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
         ) {
             // -- entry
-            currentAstNode = function;
-
             auto *fnLabel = new string("fun@" + to_string(function->line) + "_" + to_string(function->pos));
 
             auto parentProgram = currentProgram();
@@ -154,7 +152,6 @@ namespace zero {
             onFunctionEnter(function, fnLabel);
 
             TypeInfo *contextObjectType = type(currentFunctionAst()->program->contextObjectTypeName);
-            tempVariableAllocatorStack.emplace_back(contextObjectType);
 
             // --- function body
 
@@ -164,10 +161,7 @@ namespace zero {
 
             // ----- exit
 
-            auto tempVariableAllocator = currentTempVariableAllocator();
-
-            unsigned int functionContextObjectSize =
-                    contextObjectType->getPropertyCount() + tempVariableAllocator.size();
+            unsigned int functionContextObjectSize = contextObjectType->getPropertyCount();
 
             currentProgram()->addInstructionAt(
                     (new Instruction())->withOpCode(
@@ -177,7 +171,11 @@ namespace zero {
                                           " values big"),
                     *programEntryLabel);
 
-            tempVariableAllocatorStack.pop_back();
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(RET)
+                            ->withDestination(0)
+                            ->withComment("redundant null-return for non-returning functions "));
+
             programsStack.pop_back();
             functionAstStack.pop_back();
 
@@ -187,7 +185,6 @@ namespace zero {
         unsigned int visitAtom(AtomicExpressionAstNode *atomic,
                                unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
         ) {
-            currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
                     currentProgram()->addInstruction(
@@ -195,8 +192,8 @@ namespace zero {
                                     ->withOpType(DECIMAL)
                                     ->withOp1((float) atof(atomic->data.c_str()))
                                     ->withDestination(preferredIndex)
-                                    ->withComment("load int into index " + to_string(preferredIndex) +
-                                                  " in the current frame")
+                                    ->withComment("load decimal into index " + to_string(preferredIndex) +
+                                                  " in the current frame - " + atomic->toString())
                     );
                     return preferredIndex;
                 }
@@ -207,7 +204,7 @@ namespace zero {
                                     ->withOp1((unsigned) (stoi(atomic->data)))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load int into index " + to_string(preferredIndex) +
-                                                  " in the current frame")
+                                                  " in the current frame - " + atomic->toString())
                     );
                     return preferredIndex;
                 }
@@ -218,7 +215,7 @@ namespace zero {
                                     ->withOp1(&(atomic->data))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load string into index " + to_string(preferredIndex) +
-                                                  " in the current frame")
+                                                  " in the current frame - " + atomic->toString())
                     );
                     return preferredIndex;
                 }
@@ -236,6 +233,103 @@ namespace zero {
             return 0;
         }
 
+        unsigned int visitBinary(BinaryExpressionAstNode *binary,
+                                 unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            Operator *op = getOp(binary->opName, 2);
+            if (op == &Operator::DOT) {
+                //visitDot(binary);
+            } else if (op == &Operator::ASSIGN) {
+                //visitAssign(binary);
+            } else {
+                unsigned int valueIndex1 = currentTempVariableAllocator()->alloc();
+                unsigned int valueIndex2 = currentTempVariableAllocator()->alloc();
+                unsigned int actualValueIndex1 = visitExpression(binary->left, valueIndex1);
+                unsigned int actualValueIndex2 = visitExpression(binary->right, valueIndex2);
+
+                unsigned short opCode = 0;
+                if (op == &Operator::ADD) {
+                    opCode = Opcode::ADD;
+                } else if (op == &Operator::SUB) {
+                    opCode = Opcode::SUB;
+                } else if (op == &Operator::DIV) {
+                    opCode = Opcode::DIV;
+                } else if (op == &Operator::MUL) {
+                    opCode = Opcode::MUL;
+                } else if (op == &Operator::MOD) {
+                    opCode = Opcode::MOD;
+                } else if (op == &Operator::CMP_E) {
+                    opCode = Opcode::CMP_EQ;
+                } else if (op == &Operator::CMP_NE) {
+                    opCode = Opcode::CMP_NEQ;
+                } else if (op == &Operator::GT) {
+                    opCode = Opcode::CMP_GT;
+                } else if (op == &Operator::GTE) {
+                    opCode = Opcode::CMP_GTE;
+                } else if (op == &Operator::LT) {
+                    opCode = Opcode::CMP_LT;
+                } else if (op == &Operator::LTE) {
+                    opCode = Opcode::CMP_LTE;
+                }
+                auto typeOfBinary = type(binary->typeName);
+
+                unsigned short opType = OpType::INT;
+                if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    opType = DECIMAL;
+                } else if (typeOfBinary == &TypeInfo::STRING) {
+                    opType = STRING;
+                }
+                currentProgram()->addInstruction(
+                        (new Instruction())
+                                ->withOpCode(opCode)
+                                ->withOpType(opType)
+                                ->withOp1(actualValueIndex1)
+                                ->withOp2(actualValueIndex2)
+                                ->withDestination(preferredIndex)
+                                ->withComment(
+                                        op->name + " 2 values at indexes " + to_string(actualValueIndex1) + " and " +
+                                        to_string(actualValueIndex2) + " into " + to_string(preferredIndex))
+                );
+
+                if (actualValueIndex1 == valueIndex1) {
+                    currentTempVariableAllocator()->release(actualValueIndex1);
+                }
+
+                if (actualValueIndex2 == valueIndex2) {
+                    currentTempVariableAllocator()->release(actualValueIndex2);
+                }
+
+                return preferredIndex;
+            }
+
+            return 0;
+        }
+
+        unsigned int visitPrefix(PrefixExpressionAstNode *prefix,
+                                 unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            unsigned int actualValueIndex = visitExpression(prefix->right, preferredIndex);
+            auto op = getOp(prefix->opName, 1);
+
+            unsigned short opCode = 0;
+            if (op == &Operator::NEG) {
+                opCode = Opcode::NEG;
+            } else {
+                // TODO: implement other operators also
+            }
+
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(opCode)
+                            ->withOp1(actualValueIndex)
+                            ->withDestination(preferredIndex)
+                            ->withComment(
+                                    "took " + op->name + " of value at index " + to_string(actualValueIndex) +
+                                    "and put it into " + to_string(preferredIndex) + " in the current frame")
+            );
+
+            return preferredIndex;
+        }
+
         unsigned int visitExpression(ExpressionAstNode *expression,
                                      unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
         ) {
@@ -244,12 +338,10 @@ namespace zero {
                     return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex);
                 }
                 case ExpressionAstNode::TYPE_BINARY: {
-                    //return visitBinary((BinaryExpressionAstNode *) expression);
-                    break;
+                    return visitBinary((BinaryExpressionAstNode *) expression, preferredIndex);
                 }
                 case ExpressionAstNode::TYPE_UNARY: {
-                    //return visitUnary((PrefixExpressionAstNode *) expression);
-                    break;
+                    return visitPrefix((PrefixExpressionAstNode *) expression, preferredIndex);
                 }
                 case ExpressionAstNode::TYPE_FUNCTION_CALL: {
                     //return visitFunctionCall((FunctionCallExpressionAstNode *) expression);
@@ -261,13 +353,15 @@ namespace zero {
 
         unsigned int visitReturn(StatementAstNode *stmt) {
             unsigned int valueIndex = 0;
+            unsigned int actualValueIndex = 0;
             if (stmt->expression != nullptr) {
-                valueIndex = visitExpression(stmt->expression);
+                valueIndex = currentTempVariableAllocator()->alloc();
+                actualValueIndex = visitExpression(stmt->expression, valueIndex);
             }
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(RET)
                             ->withDestination(valueIndex)
-                            ->withComment("return value at " + to_string(valueIndex))
+                            ->withComment("return value at " + to_string(actualValueIndex))
             );
             return valueIndex;
         }
@@ -331,6 +425,8 @@ namespace zero {
                                 ->withOpType(opType(variable->typeName))
                                 ->withOp1(variable->initialValue->memoryIndex)
                                 ->withDestination(destinationIndex)
+                                ->withComment("mov immediate value into index " +
+                                              to_string(destinationIndex) + " (" + variable->identifier + ")")
                 );
             }
         }

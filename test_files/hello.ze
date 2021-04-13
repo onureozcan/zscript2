@@ -3,6 +3,9 @@ var main = fun() {
 
 	var a = "test"
 	var b = 3
+
+	30 + 50 + 70
+
 	b.toString()
 	print(a + (2 * 3).toString())
 

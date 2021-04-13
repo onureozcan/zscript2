@@ -27,7 +27,7 @@ namespace zero {
     }
 
     string VariableAstNode::toString() {
-        return "var " + identifier + ":" + typeName + " = " +
+        return "var " + identifier + "@" + to_string(memoryIndex) + ":" + typeName + " = " +
                (initialValue != nullptr ? initialValue->toString() : "null");
     }
 }
