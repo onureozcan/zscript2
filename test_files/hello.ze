@@ -4,7 +4,7 @@ var main = fun() {
 	var a = "test"
 	var b = 3
 
-	30 + 50 + 70
+	b = 30 + 50 + 70
 
 	b.toString()
 	print(a + (2 * 3).toString())
@@ -21,3 +21,11 @@ var main = fun() {
 	}
 	c(10, "test", 0)
 }
+
+var test = 0
+
+var testFnc = fun() {
+    test = 3 // should be able to set in parent context
+}
+
+testFnc()

@@ -81,6 +81,18 @@ namespace zero {
                     return "CAST_F";
                 case NEG:
                     return "NEG";
+                case PUSH:
+                    return "PUSH";
+                case POP:
+                    return "POP";
+                case GET_IN_PARENT:
+                    return "GET_IN_PARENT";
+                case SET_IN_PARENT:
+                    return "SET_IN_PARENT";
+                case GET_IN_OBJECT:
+                    return "GET_IN_OBJECT";
+                case SET_IN_OBJECT:
+                    return "SET_IN_OBJECT";
                 default:
                     return "";
             };
@@ -203,7 +215,7 @@ namespace zero {
         auto opcodeStr = Instruction::Impl::opCodeToString(opCode);
         auto opTypeStr = Instruction::Impl::opTypeToString(opType);
 
-        if (opType == FNC || opType == STRING) {
+        if (opCode == MOV && (opType == FNC || opType == STRING)) {
             op1Str = *operand1AsLabel;
         } else if (opType == DECIMAL) {
             op1Str = to_string(operand1AsDecimal);

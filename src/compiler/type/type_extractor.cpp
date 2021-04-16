@@ -51,7 +51,7 @@ namespace zero {
             auto typeName = string(isNative ? "native" : "fun") + "<" + argsStr + returnType + ">";
             TypeInfo *type = typeMetadataRepository->findTypeByName(typeName);
             if (type == nullptr) {
-                type = new TypeInfo(typeName, 1);
+                type = new TypeInfo(typeName, 1, isNative);
                 for (auto &argType:argTypes) {
                     type->addParameter(typeOrError(argType));
                 }

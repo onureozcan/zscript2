@@ -155,6 +155,16 @@ namespace zero {
 
             // --- function body
 
+            for (int i = function->arguments->size() - 1; i >= 0; i--) {
+                auto argPair = function->arguments->at(i);
+                auto argIndex = contextObjectType->getProperty(argPair.first)->index;
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(POP)
+                                ->withDestination(argIndex)
+                                ->withComment("getting argument at index " + to_string(argIndex))
+                );
+            }
+
             for (auto &stmt:*function->program->statements) {
                 visitStatement(stmt);
             }
@@ -215,7 +225,7 @@ namespace zero {
                                     ->withOp1(&(atomic->data))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load string into index " + to_string(preferredIndex) +
-                                                  " in the current frame - " + atomic->toString())
+                                                  " in the current frame ")
                     );
                     return preferredIndex;
                 }
@@ -223,14 +233,96 @@ namespace zero {
                     return visitFunction((FunctionAstNode *) atomic, preferredIndex);
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
+                    if (atomic->memoryDepth == 0) {
+                        // in the current frame, simple, say its address relative to current frame
+                        return atomic->memoryIndex;
+                    } else {
+                        // in a parent frame
+                        currentProgram()->addInstruction(
+                                (new Instruction())
+                                        ->withOpCode(GET_IN_PARENT)
+                                        ->withOp1(atomic->memoryDepth)
+                                        ->withOp2(atomic->memoryIndex)
+                                        ->withDestination(preferredIndex)
+                                        ->withComment(
+                                                "getting the value at index " + to_string(atomic->memoryIndex)
+                                                + " at parent with depth " + to_string(atomic->memoryDepth) +
+                                                " into index " + to_string(preferredIndex) + " in the current frame (" +
+                                                atomic->data + ")"
+                                        )
+                        );
+                        return preferredIndex;
+                    }
                     break;
                 }
             }
             return atomic->memoryIndex;
         }
 
-        unsigned int visitFunctionCall(FunctionCallExpressionAstNode *function) {
-            return 0;
+        unsigned int visitFunctionCall(FunctionCallExpressionAstNode *functionCall,
+                                       unsigned int preferredIndex
+        ) {
+            unsigned int tempIndex = currentTempVariableAllocator()->alloc();
+            for (unsigned int i = 0; i < functionCall->params->size(); i++) {
+                ExpressionAstNode *param = functionCall->params->at(i);
+                unsigned int paramValueIndex = visitExpression(param, tempIndex);
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(PUSH)
+                                ->withOp1(paramValueIndex)
+                                ->withComment("pushing param number " + to_string(i) + " which is at index " +
+                                              to_string(paramValueIndex))
+                );
+            }
+            currentTempVariableAllocator()->release(tempIndex);
+            auto functionType = type(functionCall->left->typeName);
+            auto opType = functionType->isNative ? NATIVE : FNC;
+
+            unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex);
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(CALL)
+                            ->withOpType(opType)
+                            ->withOp1(functionIndex)
+                            ->withDestination(preferredIndex)
+                            ->withComment("calling functionCall at index " + to_string(functionIndex))
+            );
+
+            return preferredIndex;
+        }
+
+        void visitAssignment(BinaryExpressionAstNode *binary, unsigned int preferredIndex) {
+
+            unsigned int valueIndex = visitExpression(binary->right, preferredIndex);
+
+            if (binary->left->expressionType == ExpressionAstNode::TYPE_ATOMIC) {
+                // assign without DOT operation
+                unsigned int memoryDepth = binary->left->memoryDepth;
+                unsigned int memoryIndex = binary->left->memoryIndex;
+
+                if (memoryDepth == 0) {
+                    // set in current context
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV)
+                                    ->withOp1(valueIndex)
+                                    ->withDestination(memoryIndex)
+                                    ->withComment("mov value at index " + to_string(valueIndex) + " into index " +
+                                                  to_string(memoryIndex) + " in the current frame")
+                    );
+                } else {
+                    // set in parent context
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(SET_IN_PARENT)
+                                    ->withOp1(memoryDepth)
+                                    ->withOp2(valueIndex)
+                                    ->withDestination(memoryIndex)
+                                    ->withComment("set value at parent index with depth " +
+                                                  to_string(memoryDepth) + " and index " + to_string(memoryIndex) +
+                                                  " from index " + to_string(valueIndex) + " in the current frame")
+                    );
+                }
+            } else {
+                // DOT assign
+                // TODO
+            }
         }
 
         unsigned int visitBinary(BinaryExpressionAstNode *binary,
@@ -240,7 +332,7 @@ namespace zero {
             if (op == &Operator::DOT) {
                 //visitDot(binary);
             } else if (op == &Operator::ASSIGN) {
-                //visitAssign(binary);
+                visitAssignment(binary, preferredIndex);
             } else {
                 unsigned int valueIndex1 = currentTempVariableAllocator()->alloc();
                 unsigned int valueIndex2 = currentTempVariableAllocator()->alloc();
@@ -344,7 +436,7 @@ namespace zero {
                     return visitPrefix((PrefixExpressionAstNode *) expression, preferredIndex);
                 }
                 case ExpressionAstNode::TYPE_FUNCTION_CALL: {
-                    //return visitFunctionCall((FunctionCallExpressionAstNode *) expression);
+                    return visitFunctionCall((FunctionCallExpressionAstNode *) expression, preferredIndex);
                     break;
                 }
             }
@@ -432,13 +524,15 @@ namespace zero {
         }
 
         void visitStatement(StatementAstNode *stmt) {
+            unsigned tempIndex = currentTempVariableAllocator()->alloc();
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
-                visitExpression(stmt->expression);
+                visitExpression(stmt->expression, tempIndex);
             } else if (stmt->type == StatementAstNode::TYPE_RETURN) {
                 visitReturn(stmt);
             } else {
                 visitVariable(stmt->variable);
             }
+            currentTempVariableAllocator()->release(tempIndex);
         }
     };
 
