@@ -32,9 +32,7 @@ namespace zero {
 
             ZParser::RootContext *root = parser.root();
             ProgramAstNode *programAst = ProgramAstNode::from(root->program(), fileName);
-            doCompile(programAst);
-
-            return nullptr;
+            return doCompile(programAst);
         }
 
     private:
@@ -43,11 +41,12 @@ namespace zero {
         TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor(&typeRepository);
         ByteCodeGenerator byteCodeGenerator = ByteCodeGenerator(&typeRepository);
 
-        void doCompile(ProgramAstNode *programAst) {
+        Program* doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);
             log.debug("\nast :\n%s", programAst->toString().c_str());
             auto program = generateByteCode(programAst);
             log.debug("\nprogram :\n%s", program->toString().c_str());
+            return program;
         }
 
         void extractAndRegisterTypeMetadata(ProgramAstNode *program) {

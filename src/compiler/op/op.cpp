@@ -50,7 +50,7 @@ namespace zero {
 
     string Operator::getReturnType(Operator *op, string type1, string type2) {
         if (op == &ASSIGN) {
-            if (strcmp(type1.c_str(), type2.c_str()) == 0) {
+            if (type1 == type2) {
                 return type1;
             }
         }

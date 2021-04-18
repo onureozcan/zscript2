@@ -3,6 +3,8 @@
 #include <common/logger.h>
 #include <compiler/op.h>
 
+#include <map>
+
 using namespace std;
 
 namespace zero {
@@ -141,8 +143,7 @@ namespace zero {
             if (parentProgram != nullptr) { // global
                 // let the parent know about our address so that it can call us
                 parentProgram->addInstruction(
-                        (new Instruction())->withOpCode(MOV)
-                                ->withOpType(FNC)
+                        (new Instruction())->withOpCode(MOV_FNC)
                                 ->withOp1(fnLabel)
                                 ->withDestination(preferredIndex)
                                 ->withComment("mov function address to index " + to_string(preferredIndex) +
@@ -198,8 +199,7 @@ namespace zero {
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
                     currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV)
-                                    ->withOpType(DECIMAL)
+                            (new Instruction())->withOpCode(MOV_DECIMAL)
                                     ->withOp1((float) atof(atomic->data.c_str()))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load decimal into index " + to_string(preferredIndex) +
@@ -209,8 +209,7 @@ namespace zero {
                 }
                 case AtomicExpressionAstNode::TYPE_INT: {
                     currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV)
-                                    ->withOpType(INT)
+                            (new Instruction())->withOpCode(MOV_INT)
                                     ->withOp1((unsigned) (stoi(atomic->data)))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load int into index " + to_string(preferredIndex) +
@@ -220,8 +219,7 @@ namespace zero {
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
                     currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV)
-                                    ->withOpType(STRING)
+                            (new Instruction())->withOpCode(MOV_STRING)
                                     ->withOp1(&(atomic->data))
                                     ->withDestination(preferredIndex)
                                     ->withComment("load string into index " + to_string(preferredIndex) +
@@ -275,12 +273,11 @@ namespace zero {
             }
             currentTempVariableAllocator()->release(tempIndex);
             auto functionType = type(functionCall->left->typeName);
-            auto opType = functionType->isNative ? NATIVE : FNC;
+            auto opCode = functionType->isNative ? CALL_NATIVE : CALL;
 
             unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex);
             currentProgram()->addInstruction(
-                    (new Instruction())->withOpCode(CALL)
-                            ->withOpType(opType)
+                    (new Instruction())->withOpCode(opCode)
                             ->withOp1(functionIndex)
                             ->withDestination(preferredIndex)
                             ->withComment("calling functionCall at index " + to_string(functionIndex))
@@ -340,41 +337,81 @@ namespace zero {
                 unsigned int actualValueIndex2 = visitExpression(binary->right, valueIndex2);
 
                 unsigned short opCode = 0;
-                if (op == &Operator::ADD) {
-                    opCode = Opcode::ADD;
-                } else if (op == &Operator::SUB) {
-                    opCode = Opcode::SUB;
-                } else if (op == &Operator::DIV) {
-                    opCode = Opcode::DIV;
-                } else if (op == &Operator::MUL) {
-                    opCode = Opcode::MUL;
-                } else if (op == &Operator::MOD) {
-                    opCode = Opcode::MOD;
-                } else if (op == &Operator::CMP_E) {
-                    opCode = Opcode::CMP_EQ;
-                } else if (op == &Operator::CMP_NE) {
-                    opCode = Opcode::CMP_NEQ;
-                } else if (op == &Operator::GT) {
-                    opCode = Opcode::CMP_GT;
-                } else if (op == &Operator::GTE) {
-                    opCode = Opcode::CMP_GTE;
-                } else if (op == &Operator::LT) {
-                    opCode = Opcode::CMP_LT;
-                } else if (op == &Operator::LTE) {
-                    opCode = Opcode::CMP_LTE;
-                }
                 auto typeOfBinary = type(binary->typeName);
 
-                unsigned short opType = OpType::INT;
-                if (typeOfBinary == &TypeInfo::DECIMAL) {
-                    opType = DECIMAL;
-                } else if (typeOfBinary == &TypeInfo::STRING) {
-                    opType = STRING;
+                if (op == &Operator::ADD) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = ADD_DECIMAL;
+                    } else if (typeOfBinary == &TypeInfo::STRING) {
+                        opCode = ADD_STRING;
+                    } else {
+                        opCode = ADD_INT;
+                    }
+                } else if (op == &Operator::SUB) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = SUB_DECIMAL;
+                    } else {
+                        opCode = SUB_INT;
+                    }
+                } else if (op == &Operator::DIV) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = DIV_DECIMAL;
+                    } else {
+                        opCode = DIV_INT;
+                    }
+                } else if (op == &Operator::MUL) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = MUL_DECIMAL;
+                    } else {
+                        opCode = MUL_INT;
+                    }
+                } else if (op == &Operator::MOD) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = MOD_DECIMAL;
+                    } else {
+                        opCode = MOD_INT;
+                    }
+                } else if (op == &Operator::CMP_E) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_EQ_DECIMAL;
+                    } else {
+                        opCode = CMP_EQ_INT;
+                    }
+                } else if (op == &Operator::CMP_NE) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_NEQ_DECIMAL;
+                    } else {
+                        opCode = CMP_NEQ_INT;
+                    }
+                } else if (op == &Operator::GT) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_GT_DECIMAL;
+                    } else {
+                        opCode = CMP_GT_INT;
+                    }
+                } else if (op == &Operator::GTE) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_GTE_DECIMAL;
+                    } else {
+                        opCode = CMP_GTE_INT;
+                    }
+                } else if (op == &Operator::LT) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_LT_DECIMAL;
+                    } else {
+                        opCode = CMP_LT_INT;
+                    }
+                } else if (op == &Operator::LTE) {
+                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                        opCode = CMP_LTE_DECIMAL;
+                    } else {
+                        opCode = CMP_LTE_INT;
+                    }
                 }
+
                 currentProgram()->addInstruction(
                         (new Instruction())
                                 ->withOpCode(opCode)
-                                ->withOpType(opType)
                                 ->withOp1(actualValueIndex1)
                                 ->withOp2(actualValueIndex2)
                                 ->withDestination(preferredIndex)
@@ -405,7 +442,11 @@ namespace zero {
 
             unsigned short opCode = 0;
             if (op == &Operator::NEG) {
-                opCode = Opcode::NEG;
+                if (prefix->typeName == TypeInfo::DECIMAL.name) {
+                    opCode = Opcode::NEG_DECIMAL;
+                } else {
+                    opCode = Opcode::NEG_INT;
+                }
             } else {
                 // TODO: implement other operators also
             }
@@ -462,32 +503,13 @@ namespace zero {
             if (t1 != t2) {
                 if (t1 == &TypeInfo::INT && t2 == &TypeInfo::DECIMAL) {
                     currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(CAST_F)
+                            (new Instruction())->withOpCode(CAST_DECIMAL)
                                     ->withOp1(valueIndex)
                                     ->withDestination(valueIndex)
                                     ->withComment("auto cast fromm int to float")
                     );
                 }
             }
-        }
-
-        unsigned short opType(string typeName) {
-            OpType ret;
-            auto typeObj = type(typeName);
-            if (typeObj == &TypeInfo::DECIMAL) {
-                ret = OpType::DECIMAL;
-            } else if (typeObj == &TypeInfo::INT) {
-                ret = OpType::INT;
-            } else if (typeObj == &TypeInfo::STRING) {
-                ret = OpType::STRING;
-            } else if (typeObj->isNative) {
-                ret = OpType::NATIVE;
-            } else if (typeObj->isCallable) {
-                ret = OpType::FNC;
-            } else {
-                ret = OpType::ANY;
-            }
-            return (unsigned short) ret;
         }
 
         void visitVariable(VariableAstNode *variable) {
@@ -512,9 +534,9 @@ namespace zero {
                 }
 
             } else {
+                auto typeObj = type(variable->typeName);
                 currentProgram()->addInstruction(
-                        (new Instruction())->withOpCode(MOV_I)
-                                ->withOpType(opType(variable->typeName))
+                        (new Instruction())->withOpCode(typeObj == &TypeInfo::DECIMAL ? MOV_DECIMAL : MOV_INT)
                                 ->withOp1(variable->initialValue->memoryIndex)
                                 ->withDestination(destinationIndex)
                                 ->withComment("mov immediate value into index " +

@@ -6,10 +6,6 @@ using namespace std;
 
 namespace zero {
 
-    enum OpType {
-        NO_TYPE, INT, DECIMAL, FNC, NATIVE, ANY, STRING
-    };
-
     enum Opcode {
         NO_OPCODE,
         LABEL,
@@ -18,26 +14,45 @@ namespace zero {
         JMP,
         JMP_EQ,
         JMP_NEQ,
-        JMP_GT,
-        JMP_LT,
-        JMP_GTE,
-        JMP_LTE,
-        MOV_I,
+        JMP_GT_INT,
+        JMP_GT_DECIMAL,
+        JMP_LT_INT,
+        JMP_LT_DECIMAL,
+        JMP_GTE_INT,
+        JMP_GTE_DECIMAL,
+        JMP_LTE_INT,
+        JMP_LTE_DECIMAL,
         MOV,
+        MOV_FNC,
+        MOV_INT,
+        MOV_DECIMAL,
+        MOV_STRING,
         CALL,
-        ADD,
-        SUB,
-        DIV,
-        MUL,
-        MOD,
+        CALL_NATIVE,
+        ADD_INT,
+        ADD_STRING,
+        ADD_DECIMAL,
+        SUB_INT,
+        SUB_DECIMAL,
+        DIV_INT,
+        DIV_DECIMAL,
+        MUL_INT,
+        MUL_DECIMAL,
+        MOD_INT,
+        MOD_DECIMAL,
         CMP_EQ,
         CMP_NEQ,
-        CMP_GT,
-        CMP_LT,
-        CMP_GTE,
-        CMP_LTE,
-        CAST_F,
-        NEG,
+        CMP_GT_INT,
+        CMP_GT_DECIMAL,
+        CMP_LT_INT,
+        CMP_LT_DECIMAL,
+        CMP_GTE_INT,
+        CMP_GTE_DECIMAL,
+        CMP_LTE_INT,
+        CMP_LTE_DECIMAL,
+        CAST_DECIMAL,
+        NEG_INT,
+        NEG_DECIMAL,
         PUSH,
         POP,
         GET_IN_PARENT, // to get an index in a parent context into current context. op1: depth, op2: index
@@ -52,8 +67,7 @@ namespace zero {
 
         class Impl;
 
-        unsigned short opCode = 0;
-        unsigned short opType = 0;
+        unsigned int opCode = 0;
         union {
             unsigned int operand1 = 0;
             string *operand1AsLabel;
@@ -65,13 +79,11 @@ namespace zero {
         union {
             unsigned int destination = 0;
         };
-        string comment = "";
+        string comment;
 
         Instruction();
 
-        Instruction *withOpCode(unsigned short opCode);
-
-        Instruction *withOpType(unsigned short type);
+        Instruction *withOpCode(unsigned int opCode);
 
         Instruction *withOp1(unsigned int op);
 
@@ -104,11 +116,11 @@ namespace zero {
 
         void addLabel(string *label);
 
-        void addConstant(string constant);
-
         void merge(Program *another);
 
         string toString();
+
+        char *toBytes();
 
     private:
         Impl *impl;

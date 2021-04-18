@@ -1,6 +1,7 @@
 #include <common/program.h>
 
 #include <vector>
+#include <map>
 
 using namespace std;
 
@@ -8,24 +9,6 @@ namespace zero {
 
     class Instruction::Impl {
     public:
-        static string opTypeToString(unsigned int opType) {
-            switch ((OpType) opType) {
-                case DECIMAL:
-                    return "_DECIMAL";
-                case FNC:
-                    return "_FNC";
-                case INT:
-                    return "_INT";
-                case NATIVE:
-                    return "_NATIVE";
-                case ANY:
-                    return "_ANY";
-                case STRING:
-                    return "_STRING";
-                default:
-                    return "";
-            };
-        }
 
         static string opCodeToString(unsigned int opcode) {
             switch ((Opcode) opcode) {
@@ -39,48 +22,84 @@ namespace zero {
                     return "JMP_EQ";
                 case JMP_NEQ:
                     return "JMP_NEQ";
-                case JMP_GT:
+                case JMP_GT_INT:
                     return "JMP_GT";
-                case JMP_GTE:
-                    return "JMP_GTE";
-                case JMP_LT:
-                    return "JMP_LT";
-                case JMP_LTE:
+                case JMP_GT_DECIMAL:
+                    return "JMP_GT_DECIMAL";
+                case JMP_GTE_INT:
+                    return "JMP_GTE_INT";
+                case JMP_GTE_DECIMAL:
+                    return "JMP_GTE_DECIMAL";
+                case JMP_LT_INT:
+                    return "JMP_LT_INT";
+                case JMP_LT_DECIMAL:
+                    return "JMP_LT_DECIMAL";
+                case JMP_LTE_INT:
                     return "JMP_LTE";
+                case JMP_LTE_DECIMAL:
+                    return "JMP_LTE_DECIMAL";
                 case MOV:
                     return "MOV";
-                case MOV_I:
-                    return "MOV_I";
-                case ADD:
-                    return "ADD";
-                case DIV:
-                    return "DIV";
-                case SUB:
-                    return "SUB";
-                case MOD:
-                    return "MOD";
+                case MOV_INT:
+                    return "MOV_INT";
+                case MOV_DECIMAL:
+                    return "MOV_DECIMAL";
+                case MOV_STRING:
+                    return "MOV_STRING";
+                case MOV_FNC:
+                    return "MOV_FNC";
+                case ADD_INT:
+                    return "ADD_INT";
+                case ADD_DECIMAL:
+                    return "ADD_DECIMAL";
+                case DIV_INT:
+                    return "DIV_INT";
+                case DIV_DECIMAL:
+                    return "DIV_DECIMAL";
+                case SUB_INT:
+                    return "SUB_INT";
+                case SUB_DECIMAL:
+                    return "SUB_DECIMAL";
+                case MOD_INT:
+                    return "MOD_INT";
+                case MOD_DECIMAL:
+                    return "MOD_DECIMAL";
                 case RET:
                     return "RET";
-                case MUL:
-                    return "MUL";
+                case MUL_INT:
+                    return "MUL_INT";
+                case MUL_DECIMAL:
+                    return "MUL_DECIMAL";
                 case CMP_EQ:
                     return "CMP_EQ";
                 case CMP_NEQ:
                     return "CMP_NEQ";
-                case CMP_GT:
-                    return "CMP_GT";
-                case CMP_GTE:
-                    return "CMP_GTE";
-                case CMP_LT:
-                    return "CMP_LT";
-                case CMP_LTE:
-                    return "CMP_LTE";
+                case CMP_GT_INT:
+                    return "CMP_GT_INT";
+                case CMP_GT_DECIMAL:
+                    return "CMP_GT_DECIMAL";
+                case CMP_GTE_INT:
+                    return "CMP_GTE_INT";
+                case CMP_GTE_DECIMAL:
+                    return "CMP_GTE_DECIMAL";
+                case CMP_LT_INT:
+                    return "CMP_LT_INT";
+                case CMP_LT_DECIMAL:
+                    return "CMP_LT_DECIMAL";
+                case CMP_LTE_INT:
+                    return "CMP_LTE_INT";
+                case CMP_LTE_DECIMAL:
+                    return "CMP_LTE_DECIMAL";
                 case CALL:
                     return "CALL";
-                case CAST_F:
-                    return "CAST_F";
-                case NEG:
-                    return "NEG";
+                case CALL_NATIVE:
+                    return "CALL_NATIVE";
+                case CAST_DECIMAL:
+                    return "CAST_DECIMAL";
+                case NEG_INT:
+                    return "NEG_INT";
+                case NEG_DECIMAL:
+                    return "NEG_DECIMAL";
                 case PUSH:
                     return "PUSH";
                 case POP:
@@ -103,6 +122,7 @@ namespace zero {
     private:
         string fileName;
         vector<Instruction *> instructions;
+        vector<unsigned int> data;
 
     public:
         Impl(string fileName) {
@@ -138,6 +158,39 @@ namespace zero {
                 }
             }
         }
+
+        char *toBytes() {
+            map<string *, int> labelPositions;
+
+            int i = 0;
+            for (auto &ins: instructions) {
+                if (ins->opCode == LABEL) {
+                    labelPositions[ins->operand1AsLabel] = i;
+                } else {
+                    i++;
+                }
+            }
+
+            data.push_back(i); // write total instruction count
+
+            for (auto &ins: instructions) {
+                if (ins->opCode == LABEL) continue;
+                data.push_back(ins->opCode);
+
+                if (ins->opCode == MOV_FNC) {
+                    auto labelIndex = labelPositions[ins->operand1AsLabel];
+                    data.push_back(labelIndex);
+                } else {
+                    data.push_back(ins->operand1);
+                }
+
+                data.push_back(ins->operand2);
+                data.push_back(ins->destination);
+
+            }
+
+            return reinterpret_cast<char *>(data.data());
+        }
     };
 
     Program::Program(string fileName) {
@@ -164,13 +217,12 @@ namespace zero {
         impl->addInstructionAt(instruction, label);
     }
 
-    Instruction *Instruction::withOpCode(unsigned short opCode) {
-        this->opCode = opCode;
-        return this;
+    char *Program::toBytes() {
+        return impl->toBytes();
     }
 
-    Instruction *Instruction::withOpType(unsigned short type) {
-        this->opType = type;
+    Instruction *Instruction::withOpCode(unsigned int opCode) {
+        this->opCode = opCode;
         return this;
     }
 
@@ -213,14 +265,27 @@ namespace zero {
         auto op2Str = to_string(operand2);
         auto destinationStr = to_string(destination);
         auto opcodeStr = Instruction::Impl::opCodeToString(opCode);
-        auto opTypeStr = Instruction::Impl::opTypeToString(opType);
 
-        if (opCode == MOV && (opType == FNC || opType == STRING)) {
+        if (opCode == MOV_FNC || opCode == MOV_STRING) {
             op1Str = *operand1AsLabel;
-        } else if (opType == DECIMAL) {
+        } else if (opCode == MOV_DECIMAL
+                   || opCode == NEG_DECIMAL
+                   || opCode == CMP_LTE_DECIMAL
+                   || opCode == CMP_LT_DECIMAL
+                   || opCode == CMP_GTE_DECIMAL
+                   || opCode == CMP_GTE_DECIMAL
+                   || opCode == CMP_LTE_DECIMAL
+                   || opCode == CMP_LTE_DECIMAL
+                   || opCode == ADD_DECIMAL
+                   || opCode == SUB_DECIMAL
+                   || opCode == MUL_DECIMAL
+                   || opCode == MOD_DECIMAL
+                   || opCode == DIV_DECIMAL
+                   || opCode == CAST_DECIMAL
+                ) {
             op1Str = to_string(operand1AsDecimal);
         }
-        return "\t" + opcodeStr + opTypeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t# " + comment +
+        return "\t" + opcodeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t# " + comment +
                "\n";
     }
 

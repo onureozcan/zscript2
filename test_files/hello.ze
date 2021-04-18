@@ -22,6 +22,8 @@ var main = fun() {
 	c(10, "test", 0)
 }
 
+main();
+
 var test = 0
 
 var testFnc = fun() {
