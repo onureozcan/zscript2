@@ -372,17 +372,9 @@ namespace zero {
                         opCode = MOD_INT;
                     }
                 } else if (op == &Operator::CMP_E) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
-                        opCode = CMP_EQ_DECIMAL;
-                    } else {
-                        opCode = CMP_EQ_INT;
-                    }
+                    opCode = CMP_EQ;
                 } else if (op == &Operator::CMP_NE) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
-                        opCode = CMP_NEQ_DECIMAL;
-                    } else {
-                        opCode = CMP_NEQ_INT;
-                    }
+                    opCode = CMP_NEQ;
                 } else if (op == &Operator::GT) {
                     if (typeOfBinary == &TypeInfo::DECIMAL) {
                         opCode = CMP_GT_DECIMAL;

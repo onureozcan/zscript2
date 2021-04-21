@@ -1,12 +1,11 @@
 #include <vm/vm.h>
 #include <common/logger.h>
+
 #include <cstring>
 #include <cmath>
 
-#define STACK_MAX 1000
-
-#define GOTO_NEXT goto *(++instruction_ptr)->branch_addr;
-#define GOTO_CURRENT goto *(instruction_ptr)->branch_addr;
+#define GOTO_NEXT goto *(++instruction_ptr)->branch_addr
+#define GOTO_CURRENT goto *(instruction_ptr)->branch_addr
 
 using namespace std;
 
@@ -27,51 +26,59 @@ namespace zero {
     } vm_instruction_t;
 
     Logger log("vm");
+    vector<z_native_fnc_t> native_function_map = {native_print};
 
     // for parameter passing, return address etc
     unsigned int sp = 0;
     z_value_t value_stack[STACK_MAX];
 
-    z_value_t uvalue(unsigned int _val) {
+    inline z_value_t uvalue(unsigned int _val) {
         z_value_t val;
         val.uint_value = _val;
         return val;
     }
 
-    z_value_t ivalue(int _val) {
+    inline z_value_t ivalue(int _val) {
         z_value_t val;
         val.int_value = _val;
         return val;
     }
 
-    z_value_t dvalue(double _val) {
+    inline z_value_t dvalue(double _val) {
         z_value_t val;
         val.double_value = _val;
         return val;
     }
 
-    z_value_t pvalue(void *_val) {
+    inline z_value_t pvalue(void *_val) {
         z_value_t val;
         val.ptr_value = _val;
         return val;
     }
 
-    z_value_t svalue(char *_val) {
+    inline z_value_t svalue(char *_val) {
         z_value_t val;
         val.string_value = _val;
         return val;
     }
 
-    void push(z_value_t value) {
+    z_value_t native_print(z_value_t *stack, unsigned int *sp_ptr) {
+        char* value = stack[*sp_ptr].string_value;
+        printf("%s\n", value);
+        *sp_ptr -= 1;
+        return ivalue(0);
+    }
+
+    inline void push(z_value_t value) {
+        sp++;
         if (sp > STACK_MAX) {
             log.error("stack overflow!", sp);
             exit(1);
         }
         value_stack[sp] = value;
-        sp++;
     }
 
-    z_value_t pop() {
+    inline z_value_t pop() {
         sp--;
         if (sp < 0) {
             log.error("stack underflow!", sp);
@@ -80,7 +87,7 @@ namespace zero {
         return value_stack[sp];
     }
 
-    z_value_t *alloc(unsigned int size) {
+    inline z_value_t *alloc(unsigned int size) {
         auto *ptr = static_cast<z_value_t *>(malloc(size * sizeof(z_value_t)));
         if (ptr == nullptr) {
             log.error("could not allocate %d size frame!", size);
@@ -99,6 +106,16 @@ namespace zero {
             instruction++;
         }
         return (vm_instruction_t *) bytes;
+    }
+
+    inline void init_call_context(z_value_t *context_object, z_value_t *parent_context) {
+        context_object[0] = pvalue(parent_context); // 0th index is a pointer to parent
+        if (parent_context == nullptr) {
+            // init native functions
+            for (unsigned int i = 0; i < native_function_map.size(); i++) {
+                context_object[i + 1] = uvalue(i);
+            }
+        }
     }
 
     void vm_run(Program *program) {
@@ -124,12 +141,10 @@ namespace zero {
 
         FN_ENTER_HEAP:
         {
-
             unsigned int local_values_size = instruction_ptr->op1;
             auto parent_context = context_object;
             context_object = alloc(local_values_size);
-            context_object[0] = pvalue(parent_context); // 0th index is a pointer to parent
-
+            init_call_context(context_object, parent_context);
             GOTO_NEXT;
         }
         FN_ENTER_STACK:
@@ -137,7 +152,7 @@ namespace zero {
             unsigned int local_values_size = instruction_ptr->op1;
             auto parent_context = context_object;
             context_object = &value_stack[sp];
-            context_object[0] = pvalue(parent_context); // 0th index is a pointer to parent
+            init_call_context(context_object, parent_context);
 
             sp += local_values_size;
             if (sp > STACK_MAX) {
@@ -274,7 +289,9 @@ namespace zero {
         }
         MOV_STRING:
         {
-            context_object[instruction_ptr->destination] = svalue(strdup(instruction_ptr->op1_string));
+            const char *data = instruction_ptr->op1_string;
+            char *copy = strdup(data);
+            context_object[instruction_ptr->destination] = svalue(copy);
             GOTO_NEXT;
         }
         CALL:
@@ -289,8 +306,8 @@ namespace zero {
         }
         CALL_NATIVE:
         {
-            auto native_handler = (z_native_fnc_t) context_object[instruction_ptr->op1].ptr_value;
-            context_object[instruction_ptr->destination] = native_handler(value_stack, sp);
+            auto native_handler = native_function_map[context_object[instruction_ptr->op1].uint_value];
+            context_object[instruction_ptr->destination] = native_handler(value_stack, &sp);
             GOTO_NEXT;
         }
         ADD_INT:
@@ -439,11 +456,13 @@ namespace zero {
         {
             context_object[instruction_ptr->destination] = ivalue(
                     -1 * context_object[instruction_ptr->op1].int_value);
+            GOTO_NEXT;
         }
         NEG_DECIMAL:
         {
             context_object[instruction_ptr->destination] = dvalue(
                     -1 * context_object[instruction_ptr->op1].double_value);
+            GOTO_NEXT;
         }
         PUSH:
         {
@@ -456,16 +475,45 @@ namespace zero {
             GOTO_NEXT;
         }
         GET_IN_PARENT:
-        { GOTO_NEXT; }
+        {
+            auto depth = instruction_ptr->op1;
+            auto index = instruction_ptr->op2;
+            auto parent_context = context_object;
+            for (int i = 0; i < depth; i++) {
+                parent_context = static_cast<z_value_t *>(parent_context[0].ptr_value);
+            }
+            context_object[instruction_ptr->destination] = parent_context[index];
+            GOTO_NEXT;
+        }
         SET_IN_PARENT:
-        { GOTO_NEXT; }
+        {
+            auto depth = instruction_ptr->op1;
+            auto index = instruction_ptr->op2;
+            auto parent_context = context_object;
+            for (int i = 0; i < depth; i++) {
+                parent_context = static_cast<z_value_t *>(parent_context[0].ptr_value);
+            }
+            parent_context[instruction_ptr->destination] = context_object[index];
+            GOTO_NEXT;
+        }
         GET_IN_OBJECT:
         { GOTO_NEXT; }
         SET_IN_OBJECT:
         { GOTO_NEXT; }
         RET:
         {
-            GOTO_NEXT;
+            auto return_index_in_parent = pop().uint_value;
+            auto return_index_in_current = instruction_ptr->destination;
+            instruction_ptr = static_cast<vm_instruction_t *>(pop().ptr_value);
+            auto current_context_object = context_object;
+            context_object = static_cast<z_value_t *>(context_object[0].ptr_value);
+            if (return_index_in_current) {
+                context_object[return_index_in_parent] = current_context_object[return_index_in_current];
+            }
+            if (context_object == nullptr) {
+                exit(0);
+            }
+            GOTO_CURRENT;
         }
     }
 }

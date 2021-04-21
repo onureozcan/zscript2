@@ -81,16 +81,17 @@ namespace zero {
 
         LocalPropertyPointer findPropertyInContextChainOrError(string name) {
             int depth = 0;
-            TypeInfo *current = currentContext();
+            TypeInfo *current;
             while (true) {
+                if (depth < contextStack.size())
+                    current = contextStack[contextStack.size() - depth - 1];
+                else break;
+
                 auto descriptor = current->getProperty(name);
                 if (descriptor != nullptr) {
                     return {depth, descriptor};
                 }
                 depth++;
-                if (depth <= contextStack.size())
-                    current = contextStack[contextStack.size() - depth];
-                else break;
             }
             errorExit("cannot find variable " + name + currentNodeInfoStr());
         }
@@ -287,6 +288,9 @@ namespace zero {
         void visitGlobal(ProgramAstNode *program) {
             currentAstNode = program;
             addContext(program);
+
+            currentContext()->addProperty("$parent", &TypeInfo::ANY);
+
             // native print function
             currentContext()->addProperty("print",
                                           getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name, 1));
