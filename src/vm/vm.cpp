@@ -19,7 +19,7 @@ namespace zero {
         union {
             unsigned int op1;
             unsigned int op1_decimal;
-            char *op1_string;
+            string *op1_string;
         };
         unsigned int op2;
         unsigned int destination;
@@ -289,7 +289,7 @@ namespace zero {
         }
         MOV_STRING:
         {
-            const char *data = instruction_ptr->op1_string;
+            const char *data = instruction_ptr->op1_string->c_str();
             char *copy = strdup(data);
             context_object[instruction_ptr->destination] = svalue(copy);
             GOTO_NEXT;
