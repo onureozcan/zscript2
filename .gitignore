@@ -1,5 +1,6 @@
 *.in
 cmake-build-debug/
+gen/
 *.obj
 x64/
 *.jar
@@ -9,4 +10,4 @@ x64/
 *.json
 *.xml
 *.interp
-*.jav
+*.java

@@ -1,0 +1,7 @@
+version: "3"
+services:
+  gcc:
+    build: .
+    container_name: clion_remote_env
+    ports:
+      - "2222:22"
