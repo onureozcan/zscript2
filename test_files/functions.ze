@@ -11,10 +11,23 @@ var some_outer_fnc = fun () {
     inner_fnc_in_outer_fnc(10)
 }
 
+var fun_returning_str = fun():String {
+    return "i can return values, how cool is not it? :D";
+}
+
+var fun_returning_fun = fun():fun<String> {
+    return fun (): String {
+        return "look ma, i can return functions too"
+    };
+}
+
 var main = fun() {
 	print("i am the main fnc")
 	print("now i am calling a function defined outside of me!")
 	some_outer_fnc()
+	print("now let's call a function that returns a value")
+	print(fun_returning_str())
+	print(fun_returning_fun()());
 }
 
 main()

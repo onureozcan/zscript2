@@ -7,7 +7,7 @@
 #define GOTO_NEXT goto *(++instruction_ptr)->branch_addr
 #define GOTO_CURRENT goto *(instruction_ptr)->branch_addr
 
-#define VM_DEBUG_ACTIVE
+//#define VM_DEBUG_ACTIVE
 
 #ifdef VM_DEBUG_ACTIVE
 #define VM_DEBUG(ARGS) log.debug ARGS

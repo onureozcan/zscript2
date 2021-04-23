@@ -24,6 +24,7 @@ namespace zero {
         if (atomContext->STRING() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_STRING;
             atomic->data = atomContext->STRING()->getText();
+            atomic->data = atomic->data.substr(1, atomic->data.size() - 2); // to remove " at the beginning and end
         }
         if (atomContext->INT() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_INT;

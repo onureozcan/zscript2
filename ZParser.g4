@@ -18,13 +18,17 @@ statement
         )? statementEnd;
 
 function
-        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=IDENT)? LCURLY
+        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
         program
         RCURLY
         ;
 
+typeDescriptor
+        : IDENT | (FUN LT (typeDescriptor) (COMMA (typeDescriptor))* GT)
+        ;
+
 typedIdent
-        : ident=IDENT (DOUBLE_DOT type=IDENT)?
+        : ident=IDENT (DOUBLE_DOT type=typeDescriptor)?
         ;
 
 variableDeclaration
