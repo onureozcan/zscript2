@@ -11,7 +11,7 @@ namespace zero {
             uint64_t uint_value;
             int64_t int_value;
             double double_value;
-            char* string_value;
+            string* string_value;
             void* ptr_value;
 
         };
@@ -22,10 +22,10 @@ namespace zero {
     z_value_t pop();
 
     // a native function manages stack manually. no calling convention yet
-    typedef z_value_t (*z_native_fnc_t)(z_value_t *stack, unsigned int *sp_ptr);
+    typedef z_value_t (*z_native_fnc_t)();
 
     void vm_run(Program *program);
 
-    z_value_t native_print(z_value_t *stack, unsigned int *sp_ptr);
+    z_value_t native_print();
 
 }

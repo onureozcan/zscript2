@@ -122,7 +122,7 @@ namespace zero {
     private:
         string fileName;
         vector<Instruction *> instructions;
-        vector<unsigned int> data;
+        vector<uint64_t> data;
 
     public:
         Impl(string fileName) {
@@ -160,7 +160,7 @@ namespace zero {
         }
 
         char *toBytes() {
-            map<string *, int> labelPositions;
+            map<string *, uint64_t> labelPositions;
 
             int i = 0;
             for (auto &ins: instructions) {
@@ -180,6 +180,9 @@ namespace zero {
                 if (ins->opCode == MOV_FNC) {
                     auto labelIndex = labelPositions[ins->operand1AsLabel];
                     data.push_back(labelIndex);
+                } else if (ins->opCode == MOV_STRING) {
+                    auto cpy = new string(*ins->operand1AsLabel);
+                    data.push_back((uint64_t) cpy);
                 } else {
                     data.push_back(ins->operand1);
                 }

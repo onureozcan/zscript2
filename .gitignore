@@ -1,5 +1,5 @@
 *.in
-cmake-build-debug/
+cmake-build-debug*/
 gen/
 *.obj
 x64/

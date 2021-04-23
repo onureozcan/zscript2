@@ -8,17 +8,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # compiler must be 11 or 14
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -lwsock32 -lws2_32 ${CMAKE_CSS_STANDARD_LIBRARIES}")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive")
-
 # antlr commit hash
 set(ANTLR4_TAG 4dfacf63e228d616232df90e4273e608d69a7f44)
 
 # required if linking to static library
 add_definitions(-DANTLR4CPP_STATIC)
 
-# using /MD flag for antlr4_runtime (for Visual C++ compilers only)
-set(ANTLR4_WITH_STATIC_CRT OFF)
 # add external build for antlrcpp
 include(ExternalAntlr4Cpp)
 # add antrl4cpp artifacts to project environment
@@ -31,16 +26,16 @@ set(ANTLR_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/antlr-4.9.2-complete.jar)
 find_package(ANTLR REQUIRED)
 
 # Call macro to add lexer and grammar to your build dependencies.
-antlr_target(SampleGrammarLexer grammar/ZLexer.g4 LEXER
+antlr_target(ZeroLexer ZLexer.g4 LEXER
         PACKAGE zero)
-antlr_target(SampleGrammarParser grammar/ZParser.g4 PARSER
+antlr_target(ZeroParser ZParser.g4 PARSER
         PACKAGE zero
-        DEPENDS_ANTLR SampleGrammarLexer
-        COMPILE_FLAGS -lib ${ANTLR_SampleGrammarLexer_OUTPUT_DIR})
+        DEPENDS_ANTLR ZeroLexer
+        COMPILE_FLAGS -lib ${ANTLR_ZeroLexer_OUTPUT_DIR})
 
 # include generated files in project environment
-include_directories(${ANTLR_SampleGrammarLexer_OUTPUT_DIR})
-include_directories(${ANTLR_SampleGrammarParser_OUTPUT_DIR})
+include_directories(${ANTLR_ZeroLexer_OUTPUT_DIR})
+include_directories(${ANTLR_ZeroParser_OUTPUT_DIR})
 
 #project headers
 include_directories("include")
@@ -51,7 +46,7 @@ file(GLOB_RECURSE SRC "src/*.cpp")
 # add generated grammar to demo binary target
 add_executable(zero
         ${SRC}
-        ${ANTLR_SampleGrammarLexer_CXX_OUTPUTS}
-        ${ANTLR_SampleGrammarParser_CXX_OUTPUTS})
+        ${ANTLR_ZeroLexer_CXX_OUTPUTS}
+        ${ANTLR_ZeroParser_CXX_OUTPUTS})
 
 target_link_libraries(zero antlr4_static)

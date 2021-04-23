@@ -1,11 +1,19 @@
 #include <vm/vm.h>
 #include <common/logger.h>
 
-#include <cstring>
 #include <cmath>
+#include <iostream>
 
 #define GOTO_NEXT goto *(++instruction_ptr)->branch_addr
 #define GOTO_CURRENT goto *(instruction_ptr)->branch_addr
+
+#define VM_DEBUG_ACTIVE
+
+#ifdef VM_DEBUG_ACTIVE
+#define VM_DEBUG(ARGS) log.debug ARGS
+#else
+#define VM_DEBUG(ARGS)
+#endif
 
 using namespace std;
 
@@ -14,22 +22,22 @@ namespace zero {
     typedef struct {
         union {
             void *branch_addr;
-            unsigned int opcode;
+            uint64_t opcode;
         };
         union {
-            unsigned int op1;
-            unsigned int op1_decimal;
+            uint64_t op1;
+            uint64_t op1_decimal;
             string *op1_string;
         };
-        unsigned int op2;
-        unsigned int destination;
+        uint64_t op2;
+        uint64_t destination;
     } vm_instruction_t;
 
     Logger log("vm");
     vector<z_native_fnc_t> native_function_map = {native_print};
 
     // for parameter passing, return address etc
-    unsigned int sp = 0;
+    int64_t stack_pointer = 0;
     z_value_t value_stack[STACK_MAX];
 
     inline z_value_t uvalue(unsigned int _val) {
@@ -56,35 +64,35 @@ namespace zero {
         return val;
     }
 
-    inline z_value_t svalue(char *_val) {
+    inline z_value_t svalue(string *_val) {
         z_value_t val;
         val.string_value = _val;
         return val;
     }
 
-    z_value_t native_print(z_value_t *stack, unsigned int *sp_ptr) {
-        char* value = stack[*sp_ptr].string_value;
-        printf("%s\n", value);
-        *sp_ptr -= 1;
+    z_value_t native_print() {
+        string *value = pop().string_value;
+        cout << *value << "\n";
         return ivalue(0);
     }
 
     inline void push(z_value_t value) {
-        sp++;
-        if (sp > STACK_MAX) {
-            log.error("stack overflow!", sp);
+        if (stack_pointer > STACK_MAX) {
+            log.error("stack overflow!", stack_pointer);
             exit(1);
         }
-        value_stack[sp] = value;
+        value_stack[stack_pointer] = value;
+        stack_pointer++;
     }
 
     inline z_value_t pop() {
-        sp--;
-        if (sp < 0) {
-            log.error("stack underflow!", sp);
+        stack_pointer--;
+        if (stack_pointer < 0) {
+            log.error("stack underflow!", stack_pointer);
             exit(1);
         }
-        return value_stack[sp];
+        auto ret = value_stack[stack_pointer];
+        return ret;
     }
 
     inline z_value_t *alloc(unsigned int size) {
@@ -97,8 +105,8 @@ namespace zero {
     }
 
     vm_instruction_t *get_vm_instructions(Program *program, void *labels[]) {
-        auto *bytes = (unsigned int *) program->toBytes();
-        unsigned int count = bytes[0];
+        auto *bytes = (uint64_t *) program->toBytes();
+        uint64_t count = bytes[0];
         bytes++;
         auto *instruction = (vm_instruction_t *) bytes;
         for (int i = 0; i < count; i++) {
@@ -137,6 +145,10 @@ namespace zero {
 
         z_value_t *context_object = nullptr; // function local variables are found in here, initially null
 
+        int64_t base_pointer = stack_pointer;
+        uint64_t call_depth = 0;
+
+
         GOTO_CURRENT;
 
         FN_ENTER_HEAP:
@@ -145,20 +157,34 @@ namespace zero {
             auto parent_context = context_object;
             context_object = alloc(local_values_size);
             init_call_context(context_object, parent_context);
+
+            VM_DEBUG(("function enter, bp: %d, sp: %d", base_pointer, stack_pointer));
+            push(uvalue(base_pointer));
+            base_pointer = stack_pointer;
+            call_depth++;
+
             GOTO_NEXT;
         }
         FN_ENTER_STACK:
         {
+            VM_DEBUG(("function enter, bp: %d, sp: %d", base_pointer, stack_pointer));
+            push(uvalue(base_pointer));
+            base_pointer = stack_pointer;
+            call_depth++;
+
             unsigned int local_values_size = instruction_ptr->op1;
+
             auto parent_context = context_object;
-            context_object = &value_stack[sp];
+            context_object = &value_stack[stack_pointer];
             init_call_context(context_object, parent_context);
 
-            sp += local_values_size;
-            if (sp > STACK_MAX) {
+            stack_pointer += local_values_size;
+            if (stack_pointer > STACK_MAX) {
                 log.error("could not allocate local stack frame, stack overflow!");
                 exit(1);
             }
+
+            VM_DEBUG(("stack allocated %d, sp: %d", local_values_size, stack_pointer));
 
             GOTO_NEXT;
         }
@@ -289,8 +315,8 @@ namespace zero {
         }
         MOV_STRING:
         {
-            const char *data = instruction_ptr->op1_string->c_str();
-            char *copy = strdup(data);
+            auto *data = instruction_ptr->op1_string;
+            auto *copy = new string(*data);
             context_object[instruction_ptr->destination] = svalue(copy);
             GOTO_NEXT;
         }
@@ -307,7 +333,7 @@ namespace zero {
         CALL_NATIVE:
         {
             auto native_handler = native_function_map[context_object[instruction_ptr->op1].uint_value];
-            context_object[instruction_ptr->destination] = native_handler(value_stack, &sp);
+            context_object[instruction_ptr->destination] = native_handler();
             GOTO_NEXT;
         }
         ADD_INT:
@@ -502,16 +528,26 @@ namespace zero {
         { GOTO_NEXT; }
         RET:
         {
+            call_depth--;
+            if (call_depth == 0) {
+                VM_DEBUG(("root function returned, vm exited"));
+                return; // this means the root function returned
+            }
+
+            stack_pointer = base_pointer;
+            base_pointer = pop().int_value;
+
+            VM_DEBUG(("ret. sp: %d, bp:%d", stack_pointer, base_pointer));
+
             auto return_index_in_parent = pop().uint_value;
             auto return_index_in_current = instruction_ptr->destination;
             instruction_ptr = static_cast<vm_instruction_t *>(pop().ptr_value);
             auto current_context_object = context_object;
             context_object = static_cast<z_value_t *>(context_object[0].ptr_value);
+            auto parent_context_object = context_object;
             if (return_index_in_current) {
-                context_object[return_index_in_parent] = current_context_object[return_index_in_current];
-            }
-            if (context_object == nullptr) {
-                exit(0);
+                // move return value
+                parent_context_object[return_index_in_parent] = current_context_object[return_index_in_current];
             }
             GOTO_CURRENT;
         }

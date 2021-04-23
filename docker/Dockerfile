@@ -22,4 +22,6 @@ RUN useradd -m user && yes password | passwd user
 
 EXPOSE 22
 
+CMD mkdir -p /tmp/zero
+
 CMD /usr/sbin/sshd -D

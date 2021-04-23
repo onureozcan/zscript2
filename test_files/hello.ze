@@ -1,13 +1,13 @@
 var main = fun() {
-	print("hello world!")
+	print("main fnc")
 
 	var a = "test"
 	var b = 3
 
 	b = 30 + 50 + 70
 
-	b.toString()
-	print(a + (2 * 3).toString())
+	//b.toString()
+	//print(a + (2 * 3).toString())
 
 	var negFnc = fun(num:decimal):decimal {
 	    print("neg fnc")
@@ -28,6 +28,10 @@ var test = 0
 
 var testFnc = fun() {
     test = 3 // should be able to set in parent context
+    print("test fnc");
+    1
 }
 
 testFnc()
+
+
