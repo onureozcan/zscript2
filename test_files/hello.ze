@@ -6,7 +6,7 @@ var main = fun() {
 
 	b = 30 + 50 + 70
 
-	//b.toString()
+	//b.toString() // toString not yet :(
 	//print(a + (2 * 3).toString())
 
 	var negFnc = fun(num:decimal):decimal {

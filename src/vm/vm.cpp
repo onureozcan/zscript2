@@ -40,6 +40,15 @@ namespace zero {
     int64_t stack_pointer = 0;
     z_value_t value_stack[STACK_MAX];
 
+    inline z_value_t *alloc(unsigned int size) {
+        auto *ptr = static_cast<z_value_t *>(malloc(size * sizeof(z_value_t)));
+        if (ptr == nullptr) {
+            log.error("could not allocate %d size frame!", size);
+            exit(1);
+        }
+        return ptr;
+    }
+
     inline z_value_t uvalue(unsigned int _val) {
         z_value_t val;
         val.uint_value = _val;
@@ -70,6 +79,20 @@ namespace zero {
         return val;
     }
 
+    inline z_value_t fvalue(uint64_t instruction_index, z_value_t *context_object) {
+        auto fun_ref = (z_fnc_ref_t *) malloc(sizeof(z_fnc_ref_t));
+        if (fun_ref == nullptr) {
+            log.error("could not allocate memory for a function reference");
+            exit(1);
+        }
+        fun_ref->parent_context_ptr = context_object;
+        fun_ref->instruction_index = instruction_index;
+
+        z_value_t val;
+        val.ptr_value = fun_ref;
+        return val;
+    }
+
     z_value_t native_print() {
         string *value = pop().string_value;
         cout << *value << "\n";
@@ -93,15 +116,6 @@ namespace zero {
         }
         auto ret = value_stack[stack_pointer];
         return ret;
-    }
-
-    inline z_value_t *alloc(unsigned int size) {
-        auto *ptr = static_cast<z_value_t *>(malloc(size * sizeof(z_value_t)));
-        if (ptr == nullptr) {
-            log.error("could not allocate %d size frame!", size);
-            exit(1);
-        }
-        return ptr;
     }
 
     vm_instruction_t *get_vm_instructions(Program *program, void *labels[]) {
@@ -148,17 +162,19 @@ namespace zero {
         int64_t base_pointer = stack_pointer;
         uint64_t call_depth = 0;
 
+        push(pvalue(nullptr)); // first parent context is null
 
         GOTO_CURRENT;
 
         FN_ENTER_HEAP:
         {
             unsigned int local_values_size = instruction_ptr->op1;
-            auto parent_context = context_object;
+            auto parent_context = (z_value_t *) pop().ptr_value;
             context_object = alloc(local_values_size);
             init_call_context(context_object, parent_context);
 
-            VM_DEBUG(("function enter, bp: %d, sp: %d", base_pointer, stack_pointer));
+            VM_DEBUG(("function enter heap, ip: %d, bp: %d, sp: %d", (instruction_ptr -
+                                                                      instructions), base_pointer, stack_pointer));
             push(uvalue(base_pointer));
             base_pointer = stack_pointer;
             call_depth++;
@@ -167,14 +183,15 @@ namespace zero {
         }
         FN_ENTER_STACK:
         {
-            VM_DEBUG(("function enter, bp: %d, sp: %d", base_pointer, stack_pointer));
+            auto parent_context = (z_value_t *) pop().ptr_value;
+            VM_DEBUG(("function enter stack, ip: %d, bp: %d, sp: %d", (instruction_ptr -
+                                                                       instructions), base_pointer, stack_pointer));
             push(uvalue(base_pointer));
             base_pointer = stack_pointer;
             call_depth++;
 
             unsigned int local_values_size = instruction_ptr->op1;
 
-            auto parent_context = context_object;
             context_object = &value_stack[stack_pointer];
             init_call_context(context_object, parent_context);
 
@@ -300,7 +317,7 @@ namespace zero {
         }
         MOV_FNC:
         {
-            context_object[instruction_ptr->destination] = uvalue(instruction_ptr->op1);
+            context_object[instruction_ptr->destination] = fvalue(instruction_ptr->op1, context_object);
             GOTO_NEXT;
         }
         MOV_INT:
@@ -322,12 +339,18 @@ namespace zero {
         }
         CALL:
         {
+            auto *fnc_ref = (z_fnc_ref_t *) context_object[instruction_ptr->op1].ptr_value;
+
             // push current instruction pointer
             push(pvalue(instruction_ptr + 1));
+            // push current context pointer
+            push(pvalue(context_object));
             // push requested return index
             push(uvalue(instruction_ptr->destination));
+            // push parent context ptr;
+            push(pvalue(fnc_ref->parent_context_ptr));
 
-            instruction_ptr = instructions + (context_object[instruction_ptr->op1]).uint_value;
+            instruction_ptr = instructions + (fnc_ref->instruction_index);
             GOTO_CURRENT;
         }
         CALL_NATIVE:
@@ -541,9 +564,9 @@ namespace zero {
 
             auto return_index_in_parent = pop().uint_value;
             auto return_index_in_current = instruction_ptr->destination;
-            instruction_ptr = static_cast<vm_instruction_t *>(pop().ptr_value);
             auto current_context_object = context_object;
-            context_object = static_cast<z_value_t *>(context_object[0].ptr_value);
+            context_object = static_cast<z_value_t *>(pop().ptr_value);
+            instruction_ptr = static_cast<vm_instruction_t *>(pop().ptr_value);
             auto parent_context_object = context_object;
             if (return_index_in_current) {
                 // move return value
