@@ -16,9 +16,8 @@ var fun_returning_str = fun():String {
 }
 
 var fun_returning_fun = fun(message: String):fun<String> {
-    print(message)
     return fun (): String {
-        return "look ma, i can return functions too: "
+        return "look ma, i can return functions too: " + message
     };
 }
 
