@@ -342,6 +342,26 @@ namespace zero {
                 unsigned short opCode = 0;
                 auto typeOfBinary = type(binary->typeName);
 
+                if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    // auto casting
+                    if (binary->left->typeName == TypeInfo::INT.name) {
+                        currentProgram()->addInstruction(
+                                (new Instruction())->withOpCode(CAST_DECIMAL)
+                                        ->withOp1(actualValueIndex1)
+                                        ->withDestination(actualValueIndex1)
+                                        ->withComment("auto cast from int to decimal")
+                        );
+                    }
+                    if (binary->right->typeName == TypeInfo::INT.name) {
+                        currentProgram()->addInstruction(
+                                (new Instruction())->withOpCode(CAST_DECIMAL)
+                                        ->withOp1(actualValueIndex2)
+                                        ->withDestination(actualValueIndex2)
+                                        ->withComment("auto cast from int to decimal")
+                        );
+                    }
+                }
+
                 if (op == &Operator::ADD) {
                     if (typeOfBinary == &TypeInfo::DECIMAL) {
                         opCode = ADD_DECIMAL;
