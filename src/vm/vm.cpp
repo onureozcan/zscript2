@@ -1,5 +1,7 @@
 #include <vm/vm.h>
-#include <common/logger.h>
+#include <vm/object_manager.h>
+
+#include <common/util.h>
 
 #include <cmath>
 #include <iostream>
@@ -10,7 +12,7 @@
 //#define VM_DEBUG_ACTIVE
 
 #ifdef VM_DEBUG_ACTIVE
-#define VM_DEBUG(ARGS) log.debug ARGS
+#define VM_DEBUG(ARGS) vm_log.debug ARGS
 #else
 #define VM_DEBUG(ARGS)
 #endif
@@ -26,14 +28,13 @@ namespace zero {
         };
         union {
             uint64_t op1;
-            uint64_t op1_decimal;
             string *op1_string;
         };
         uint64_t op2;
         uint64_t destination;
     } vm_instruction_t;
 
-    Logger log("vm");
+    Logger vm_log("vm");
     vector<z_native_fnc_t> native_function_map = {native_print};
 
     // for parameter passing, return address etc
@@ -41,29 +42,31 @@ namespace zero {
     z_value_t value_stack[STACK_MAX];
 
     inline z_value_t *alloc(unsigned int size) {
-        auto *ptr = static_cast<z_value_t *>(malloc(size * sizeof(z_value_t)));
+        auto *ptr = static_cast<z_value_t *>(malloc_aligned(size * sizeof(z_value_t)));
         if (ptr == nullptr) {
-            log.error("could not allocate %d size frame!", size);
+            vm_log.error("could not allocate %d size frame!", size);
             exit(1);
         }
         return ptr;
     }
 
-    inline z_value_t uvalue(unsigned int _val) {
+    inline z_value_t uvalue(uint64_t _val) {
         z_value_t val;
         val.uint_value = _val;
         return val;
     }
 
-    inline z_value_t ivalue(int _val) {
+    inline z_value_t ivalue(int32_t _val) {
         z_value_t val;
-        val.int_value = _val;
+        val.arithmetic_int_value = _val;
+        val.primitive_type = PRIMITIVE_TYPE_INT;
         return val;
     }
 
-    inline z_value_t dvalue(double _val) {
+    inline z_value_t dvalue(float _val) {
         z_value_t val;
-        val.double_value = _val;
+        val.arithmetic_decimal_value = _val;
+        val.primitive_type = PRIMITIVE_TYPE_DOUBLE;
         return val;
     }
 
@@ -76,32 +79,47 @@ namespace zero {
     inline z_value_t svalue(string *_val) {
         z_value_t val;
         val.string_value = _val;
+        object_manager_register_string(val);
         return val;
     }
 
-    inline z_value_t fvalue(uint64_t instruction_index, z_value_t *context_object) {
-        auto fun_ref = (z_fnc_ref_t *) malloc(sizeof(z_fnc_ref_t));
-        if (fun_ref == nullptr) {
-            log.error("could not allocate memory for a function reference");
-            exit(1);
-        }
-        fun_ref->parent_context_ptr = context_object;
-        fun_ref->instruction_index = instruction_index;
-
+    inline z_value_t fvalue(unsigned int instruction_index, z_value_t *context_object) {
         z_value_t val;
-        val.ptr_value = fun_ref;
+        val.ptr_value = object_manager_create_fn_ref(instruction_index, context_object);
         return val;
     }
 
     z_value_t native_print() {
-        string *value = pop().string_value;
-        cout << *value << "\n";
+        z_value_t z_value = pop();
+        z_object_type_info type = object_manager_guess_type(z_value);
+        string str_value;
+        switch (type) {
+            case VM_VALUE_TYPE_STRING:
+                str_value = *z_value.string_value;
+                break;
+            case VM_VALUE_TYPE_DECIMAL:
+                str_value = to_string(z_value.arithmetic_decimal_value);
+                break;
+            case VM_VALUE_TYPE_INT:
+                str_value = to_string(z_value.arithmetic_int_value);
+                break;
+            case VM_VALUE_TYPE_FUNCTION_REF:
+                str_value = "[function ref]";
+                break;
+            case VM_VALUE_TYPE_TYPE_OBJECT:
+                str_value = "[object ref]";
+                break;
+            default:
+                str_value = "[?]";
+                break;
+        }
+        cout << str_value << "\n";
         return ivalue(0);
     }
 
     inline void push(z_value_t value) {
         if (stack_pointer > STACK_MAX) {
-            log.error("stack overflow!", stack_pointer);
+            vm_log.error("stack overflow!", stack_pointer);
             exit(1);
         }
         value_stack[stack_pointer] = value;
@@ -111,7 +129,7 @@ namespace zero {
     inline z_value_t pop() {
         stack_pointer--;
         if (stack_pointer < 0) {
-            log.error("stack underflow!", stack_pointer);
+            vm_log.error("stack underflow!", stack_pointer);
             exit(1);
         }
         auto ret = value_stack[stack_pointer];
@@ -197,7 +215,7 @@ namespace zero {
 
             stack_pointer += local_values_size;
             if (stack_pointer > STACK_MAX) {
-                log.error("could not allocate local stack frame, stack overflow!");
+                vm_log.error("could not allocate local stack frame, stack overflow!");
                 exit(1);
             }
 
@@ -234,7 +252,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.int_value > v2.int_value) {
+            if (v1.arithmetic_int_value > v2.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -244,7 +262,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.double_value > v2.double_value) {
+            if (v1.arithmetic_decimal_value > v2.arithmetic_decimal_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -254,7 +272,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.int_value < v2.int_value) {
+            if (v1.arithmetic_int_value < v2.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -264,7 +282,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.double_value < v2.double_value) {
+            if (v1.arithmetic_decimal_value < v2.arithmetic_decimal_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -274,7 +292,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.int_value >= v2.int_value) {
+            if (v1.arithmetic_int_value >= v2.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -284,7 +302,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.double_value >= v2.double_value) {
+            if (v1.arithmetic_decimal_value >= v2.arithmetic_decimal_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -294,7 +312,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.int_value <= v2.int_value) {
+            if (v1.arithmetic_int_value <= v2.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -304,7 +322,7 @@ namespace zero {
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            if (v1.double_value <= v2.double_value) {
+            if (v1.arithmetic_decimal_value <= v2.arithmetic_decimal_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
@@ -327,7 +345,8 @@ namespace zero {
         }
         MOV_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(instruction_ptr->op1_decimal);
+            double value = *(double *) &instruction_ptr->op1;
+            context_object[instruction_ptr->destination] = dvalue(value);
             GOTO_NEXT;
         }
         MOV_STRING:
@@ -361,8 +380,8 @@ namespace zero {
         }
         ADD_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].int_value +
-                                                                  context_object[instruction_ptr->op1].int_value);
+            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].arithmetic_int_value +
+                                                                  context_object[instruction_ptr->op2].arithmetic_int_value);
             GOTO_NEXT;
         }
         ADD_STRING:
@@ -374,145 +393,145 @@ namespace zero {
         }
         ADD_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].double_value +
-                                                                  context_object[instruction_ptr->op1].double_value);
+            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].arithmetic_decimal_value +
+                                                                  context_object[instruction_ptr->op2].arithmetic_decimal_value);
             GOTO_NEXT;
         }
         SUB_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].int_value -
-                                                                  context_object[instruction_ptr->op1].int_value);
+            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].arithmetic_int_value -
+                                                                  context_object[instruction_ptr->op2].arithmetic_int_value);
             GOTO_NEXT;
         }
         SUB_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].double_value -
-                                                                  context_object[instruction_ptr->op1].double_value);
+            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].arithmetic_decimal_value -
+                                                                  context_object[instruction_ptr->op2].arithmetic_decimal_value);
             GOTO_NEXT;
         }
         DIV_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].int_value /
-                                                                  context_object[instruction_ptr->op1].int_value);
+            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].arithmetic_int_value /
+                                                                  context_object[instruction_ptr->op2].arithmetic_int_value);
             GOTO_NEXT;
         }
         DIV_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].double_value /
-                                                                  context_object[instruction_ptr->op1].double_value);
+            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].arithmetic_decimal_value /
+                                                                  context_object[instruction_ptr->op2].arithmetic_decimal_value);
             GOTO_NEXT;
         }
         MUL_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].int_value *
-                                                                  context_object[instruction_ptr->op1].int_value);
+            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].arithmetic_int_value *
+                                                                  context_object[instruction_ptr->op2].arithmetic_int_value);
             GOTO_NEXT;
         }
         MUL_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].double_value *
-                                                                  context_object[instruction_ptr->op1].double_value);
+            context_object[instruction_ptr->destination] = dvalue(context_object[instruction_ptr->op1].arithmetic_decimal_value *
+                                                                  context_object[instruction_ptr->op2].arithmetic_decimal_value);
             GOTO_NEXT;
         }
         MOD_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].int_value %
-                                                                  context_object[instruction_ptr->op1].int_value);
+            context_object[instruction_ptr->destination] = ivalue(context_object[instruction_ptr->op1].arithmetic_int_value %
+                                                                  context_object[instruction_ptr->op2].arithmetic_int_value);
             GOTO_NEXT;
         }
         MOD_DECIMAL:
         {
             context_object[instruction_ptr->destination] = dvalue(
-                    fmod(context_object[instruction_ptr->op1].double_value,
-                         context_object[instruction_ptr->op1].double_value));
+                    fmod(context_object[instruction_ptr->op1].arithmetic_decimal_value,
+                         context_object[instruction_ptr->op1].arithmetic_decimal_value));
             GOTO_NEXT;
         }
         CMP_EQ:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value == v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value == v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_NEQ:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value != v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value != v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GT_INT:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value > v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value > v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GT_DECIMAL:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = dvalue(v1.double_value > v2.int_value);
+            context_object[instruction_ptr->destination] = dvalue(v1.arithmetic_decimal_value > v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LT_INT:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value < v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value < v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LT_DECIMAL:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = dvalue(v1.double_value < v2.double_value);
+            context_object[instruction_ptr->destination] = dvalue(v1.arithmetic_decimal_value < v2.arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CMP_GTE_INT:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value >= v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value >= v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GTE_DECIMAL:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = dvalue(v1.double_value >= v2.double_value);
+            context_object[instruction_ptr->destination] = dvalue(v1.arithmetic_decimal_value >= v2.arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CMP_LTE_INT:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = ivalue(v1.int_value <= v2.int_value);
+            context_object[instruction_ptr->destination] = ivalue(v1.arithmetic_int_value <= v2.arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LTE_DECIMAL:
         {
             auto v1 = context_object[instruction_ptr->op1];
             auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = dvalue(v1.double_value <= v2.double_value);
+            context_object[instruction_ptr->destination] = dvalue(v1.arithmetic_decimal_value <= v2.arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CAST_DECIMAL:
         {
             context_object[instruction_ptr->destination] = dvalue(
-                    (double) context_object[instruction_ptr->op1].int_value);
+                    (float) context_object[instruction_ptr->op1].arithmetic_int_value);
             GOTO_NEXT;
         }
         NEG_INT:
         {
             context_object[instruction_ptr->destination] = ivalue(
-                    -1 * context_object[instruction_ptr->op1].int_value);
+                    -1 * context_object[instruction_ptr->op1].arithmetic_int_value);
             GOTO_NEXT;
         }
         NEG_DECIMAL:
         {
             context_object[instruction_ptr->destination] = dvalue(
-                    -1 * context_object[instruction_ptr->op1].double_value);
+                    -1 * context_object[instruction_ptr->op1].arithmetic_decimal_value);
             GOTO_NEXT;
         }
         PUSH:
@@ -567,7 +586,7 @@ namespace zero {
             }
 
             stack_pointer = base_pointer;
-            base_pointer = pop().int_value;
+            base_pointer = pop().uint_value;
 
             VM_DEBUG(("ret. sp: %d, bp:%d", stack_pointer, base_pointer));
 

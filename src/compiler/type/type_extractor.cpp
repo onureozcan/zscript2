@@ -293,10 +293,7 @@ namespace zero {
 
             // native print function
             currentContext()->addProperty("print",
-                                          getOrRegisterFunctionType({TypeInfo::STRING.name}, TypeInfo::T_VOID.name, 1));
-            // native to string function
-            TypeInfo::INT.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
-            TypeInfo::DECIMAL.addProperty("toString", getOrRegisterFunctionType({}, TypeInfo::STRING.name, 1));
+                                          getOrRegisterFunctionType({TypeInfo::ANY.name}, TypeInfo::T_VOID.name, 1));
 
             auto statements = program->statements;
             for (auto stmt: *statements) {

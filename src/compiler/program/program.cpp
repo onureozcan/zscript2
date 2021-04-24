@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <map>
+#include <cstring>
 
 using namespace std;
 
@@ -187,6 +188,12 @@ namespace zero {
                 } else if (ins->opCode == MOV_STRING) {
                     auto cpy = new string(*ins->operand1AsLabel);
                     data.push_back((uint64_t) cpy);
+                } else if (ins->opCode == MOV_DECIMAL) {
+                    double double_value = ins->operand1AsDecimal;
+                    char buf[sizeof(double)];
+                    memcpy(buf, &double_value, sizeof(double));
+                    uint64_t data_to_be_written = *(uint64_t *) buf;
+                    data.push_back(data_to_be_written);
                 } else {
                     data.push_back(ins->operand1);
                 }
@@ -275,21 +282,7 @@ namespace zero {
 
         if (opCode == MOV_FNC || opCode == MOV_STRING) {
             op1Str = *operand1AsLabel;
-        } else if (opCode == MOV_DECIMAL
-                   || opCode == NEG_DECIMAL
-                   || opCode == CMP_LTE_DECIMAL
-                   || opCode == CMP_LT_DECIMAL
-                   || opCode == CMP_GTE_DECIMAL
-                   || opCode == CMP_GTE_DECIMAL
-                   || opCode == CMP_LTE_DECIMAL
-                   || opCode == CMP_LTE_DECIMAL
-                   || opCode == ADD_DECIMAL
-                   || opCode == SUB_DECIMAL
-                   || opCode == MUL_DECIMAL
-                   || opCode == MOD_DECIMAL
-                   || opCode == DIV_DECIMAL
-                   || opCode == CAST_DECIMAL
-                ) {
+        } else if (opCode == MOV_DECIMAL) {
             op1Str = to_string(operand1AsDecimal);
         }
         return "\t" + opcodeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t# " + comment +

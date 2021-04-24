@@ -72,7 +72,7 @@ namespace zero {
         union {
             unsigned int operand1 = 0;
             string *operand1AsLabel;
-            float operand1AsDecimal;
+            double operand1AsDecimal;
         };
         union {
             unsigned int operand2 = 0;
