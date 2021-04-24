@@ -50,6 +50,8 @@ namespace zero {
                     return "MOV_FNC";
                 case ADD_INT:
                     return "ADD_INT";
+                case ADD_STRING:
+                    return "ADD_STRING";
                 case ADD_DECIMAL:
                     return "ADD_DECIMAL";
                 case DIV_INT:
@@ -104,6 +106,8 @@ namespace zero {
                     return "PUSH";
                 case POP:
                     return "POP";
+                case ARG_READ:
+                    return "ARG_READ";
                 case GET_IN_PARENT:
                     return "GET_IN_PARENT";
                 case SET_IN_PARENT:

@@ -15,10 +15,15 @@ var fun_returning_str = fun():String {
     return "i can return values, how cool is not it? :D";
 }
 
-var fun_returning_fun = fun():fun<String> {
+var fun_returning_fun = fun(message: String):fun<String> {
+    print(message)
     return fun (): String {
-        return "look ma, i can return functions too"
+        return "look ma, i can return functions too: "
     };
+}
+
+var fun_with_args = fun (a:String, b:String): String {
+    return a + b
 }
 
 var main = fun() {
@@ -27,7 +32,12 @@ var main = fun() {
 	some_outer_fnc()
 	print("now let's call a function that returns a value")
 	print(fun_returning_str())
-	print(fun_returning_fun()());
+	print("now let me call a function and pass arguments to it")
+	print(fun_with_args("arg1","arg2"))
+	print("now i will call a function, generating a function based on the parameter i have passed")
+	print(fun_returning_fun("some arg 1")());
+	print(fun_returning_fun("some arg 2")());
+	print(fun_returning_fun("some arg 3")());
 }
 
 main()

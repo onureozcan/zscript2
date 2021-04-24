@@ -150,7 +150,7 @@ namespace zero {
                 &&MUL_INT, &&MUL_DECIMAL, &&MOD_INT, &&MOD_DECIMAL, &&CMP_EQ,
                 &&CMP_NEQ, &&CMP_GT_INT, &&CMP_GT_DECIMAL, &&CMP_LT_INT, &&CMP_LT_DECIMAL,
                 &&CMP_GTE_INT, &&CMP_GTE_DECIMAL, &&CMP_LTE_INT, &&CMP_LTE_DECIMAL, &&CAST_DECIMAL,
-                &&NEG_INT, &&NEG_DECIMAL, &&PUSH, &&POP, &&GET_IN_PARENT, &&SET_IN_PARENT,
+                &&NEG_INT, &&NEG_DECIMAL, &&PUSH, &&POP, &&ARG_READ, &&GET_IN_PARENT, &&SET_IN_PARENT,
                 &&GET_IN_OBJECT, &&SET_IN_OBJECT, &&RET
         };
 
@@ -367,7 +367,9 @@ namespace zero {
         }
         ADD_STRING:
         {
-            // TODO
+            auto str1 = context_object[instruction_ptr->op1].string_value;
+            auto str2 = context_object[instruction_ptr->op2].string_value;
+            context_object[instruction_ptr->destination] = svalue(new string(*str1 + *str2));
             GOTO_NEXT;
         }
         ADD_DECIMAL:
@@ -521,6 +523,13 @@ namespace zero {
         POP:
         {
             context_object[instruction_ptr->destination] = pop();
+            GOTO_NEXT;
+        }
+        ARG_READ:
+        {
+            auto argNumber = instruction_ptr->op1;
+            context_object[instruction_ptr->destination] =
+                    value_stack[base_pointer - 5 - argNumber]; // 5 is because of the calling convention
             GOTO_NEXT;
         }
         GET_IN_PARENT:

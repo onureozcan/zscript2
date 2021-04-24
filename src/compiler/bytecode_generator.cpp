@@ -156,13 +156,16 @@ namespace zero {
 
             // --- function body
 
-            for (int i = function->arguments->size() - 1; i >= 0; i--) {
+            for (int i = 0; i < function->arguments->size(); i++) {
                 auto argPair = function->arguments->at(i);
                 auto argIndex = contextObjectType->getProperty(argPair.first)->index;
                 currentProgram()->addInstruction(
-                        (new Instruction())->withOpCode(POP)
+                        (new Instruction())
+                                ->withOpCode(ARG_READ)
+                                ->withOp1((unsigned int) (function->arguments->size() - i - 1))
                                 ->withDestination(argIndex)
-                                ->withComment("getting argument at index " + to_string(argIndex))
+                                ->withComment(
+                                        "getting argument at index " + to_string(i) + " into " + to_string(argIndex))
                 );
             }
 
