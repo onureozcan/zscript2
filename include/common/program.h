@@ -25,6 +25,7 @@ namespace zero {
         MOV,
         MOV_FNC,
         MOV_INT,
+        MOV_BOOLEAN,
         MOV_DECIMAL,
         MOV_STRING,
         CALL,

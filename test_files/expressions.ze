@@ -1,1 +1,5 @@
-print(1 < 2)
+print(1 < 2) // true
+print(0.77 < -2.0) // false
+print(3 < -15.4) // false
+print(10 <= 10.0) // true
+print(-0.22 > - 0.23) // true

@@ -66,8 +66,9 @@ namespace zero {
         static const int TYPE_IDENTIFIER = 0;
         static const int TYPE_INT = 1;
         static const int TYPE_DECIMAL = 2;
-        static const int TYPE_STRING = 3;
-        static const int TYPE_FUNCTION = 4;
+        static const int TYPE_BOOLEAN = 3;
+        static const int TYPE_STRING = 4;
+        static const int TYPE_FUNCTION = 5;
     };
 
     class VariableAstNode : public BaseAstNode {

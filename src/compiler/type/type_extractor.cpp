@@ -146,6 +146,10 @@ namespace zero {
                     atomic->typeName = TypeInfo::INT.name;
                     break;
                 }
+                case AtomicExpressionAstNode::TYPE_BOOLEAN: {
+                    atomic->typeName = TypeInfo::BOOLEAN.name;
+                    break;
+                }
                 case AtomicExpressionAstNode::TYPE_STRING: {
                     atomic->typeName = TypeInfo::STRING.name;
                     break;

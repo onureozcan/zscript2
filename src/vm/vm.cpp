@@ -172,7 +172,7 @@ namespace zero {
         static void *labels[] = {
                 &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_EQ, &&JMP_NEQ,
                 &&JMP_GT_INT, &&JMP_GT_DECIMAL, &&JMP_LT_INT, &&JMP_LT_DECIMAL, &&JMP_GTE_INT,
-                &&JMP_GTE_DECIMAL, &&JMP_LTE_INT, &&JMP_LTE_DECIMAL, &&MOV, &&MOV_FNC, &&MOV_INT,
+                &&JMP_GTE_DECIMAL, &&JMP_LTE_INT, &&JMP_LTE_DECIMAL, &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,
                 &&MOV_DECIMAL, &&MOV_STRING, &&CALL, &&CALL_NATIVE, &&ADD_INT, &&ADD_STRING,
                 &&ADD_DECIMAL, &&SUB_INT, &&SUB_DECIMAL, &&DIV_INT, &&DIV_DECIMAL,
                 &&MUL_INT, &&MUL_DECIMAL, &&MOD_INT, &&MOD_DECIMAL, &&CMP_EQ,
@@ -351,6 +351,11 @@ namespace zero {
         MOV_INT:
         {
             context_object[instruction_ptr->destination] = ivalue(instruction_ptr->op1);
+            GOTO_NEXT;
+        }
+        MOV_BOOLEAN:
+        {
+            context_object[instruction_ptr->destination] = bvalue(instruction_ptr->op1);
             GOTO_NEXT;
         }
         MOV_DECIMAL:

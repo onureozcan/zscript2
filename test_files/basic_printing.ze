@@ -12,3 +12,6 @@ print(5);
 print(20 + 10/2 - 12)
 
 print(19.22 + 4)
+
+print(false)
+print(true)

@@ -55,6 +55,6 @@ primaryExpresssion
       | atom
       ;
 
-atom: (STRING|INT|DECIMAL|IDENT|function);
+atom: (STRING|INT|DECIMAL|TRUE_|FALSE_|NULL_|IDENT|function);
 
 statementEnd: NEWLINE + | SEMICOL;

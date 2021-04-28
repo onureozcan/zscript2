@@ -32,6 +32,9 @@ namespace zero {
         if (atomContext->DECIMAL() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_DECIMAL;
         }
+        if (atomContext->TRUE_() != nullptr || atomContext->FALSE_() != nullptr) {
+            atomic->atomicType = AtomicExpressionAstNode::TYPE_BOOLEAN;
+        }
         return atomic;
     }
 

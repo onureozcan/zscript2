@@ -42,6 +42,9 @@ VAR: 'var';
 FUN: 'fun';
 CLASS: 'class';
 RET: 'return';
+FALSE_: 'false';
+TRUE_: 'true';
+NULL_: 'null';
 
 INT             : '0'|[1-9][0-9]* ;
 DECIMAL         : [0-9][0-9]* '.' [0-9]+ ;

@@ -220,6 +220,16 @@ namespace zero {
                     );
                     return preferredIndex;
                 }
+                case AtomicExpressionAstNode::TYPE_BOOLEAN: {
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV_BOOLEAN)
+                                    ->withOp1((unsigned) (atomic->data == "true" ? 1 : 0))
+                                    ->withDestination(preferredIndex)
+                                    ->withComment("load boolean into index " + to_string(preferredIndex) +
+                                                  " in the current frame - " + atomic->toString())
+                    );
+                    return preferredIndex;
+                }
                 case AtomicExpressionAstNode::TYPE_STRING: {
                     currentProgram()->addInstruction(
                             (new Instruction())->withOpCode(MOV_STRING)
@@ -254,7 +264,6 @@ namespace zero {
                         );
                         return preferredIndex;
                     }
-                    break;
                 }
             }
             return atomic->memoryIndex;
@@ -341,8 +350,10 @@ namespace zero {
 
                 unsigned short opCode = 0;
                 auto typeOfBinary = type(binary->typeName);
+                auto isDecimalOp = binary->left->typeName == TypeInfo::DECIMAL.name ||
+                                   binary->right->typeName == TypeInfo::DECIMAL.name;
 
-                if (typeOfBinary == &TypeInfo::DECIMAL) {
+                if (isDecimalOp) {
                     // auto casting
                     if (binary->left->typeName == TypeInfo::INT.name) {
                         currentProgram()->addInstruction(
@@ -399,25 +410,25 @@ namespace zero {
                 } else if (op == &Operator::CMP_NE) {
                     opCode = CMP_NEQ;
                 } else if (op == &Operator::GT) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    if (isDecimalOp) {
                         opCode = CMP_GT_DECIMAL;
                     } else {
                         opCode = CMP_GT_INT;
                     }
                 } else if (op == &Operator::GTE) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    if (isDecimalOp) {
                         opCode = CMP_GTE_DECIMAL;
                     } else {
                         opCode = CMP_GTE_INT;
                     }
                 } else if (op == &Operator::LT) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    if (isDecimalOp) {
                         opCode = CMP_LT_DECIMAL;
                     } else {
                         opCode = CMP_LT_INT;
                     }
                 } else if (op == &Operator::LTE) {
-                    if (typeOfBinary == &TypeInfo::DECIMAL) {
+                    if (isDecimalOp) {
                         opCode = CMP_LTE_DECIMAL;
                     } else {
                         opCode = CMP_LTE_INT;
