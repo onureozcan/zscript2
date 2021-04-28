@@ -25,7 +25,13 @@ var fun_with_args = fun (a:String, b:String): String {
     return a + b
 }
 
+var fun_takes_fun_as_arg = fun (fn:fun<String>) : String {
+    print("hey, nice function, i will call it now!")
+    return fn()
+}
+
 var main = fun() {
+
 	print("i am the main fnc")
 	print("now i am calling a function defined outside of me!")
 	some_outer_fnc()
@@ -37,6 +43,12 @@ var main = fun() {
 	print(fun_returning_fun("some arg 1")());
 	print(fun_returning_fun("some arg 2")());
 	print(fun_returning_fun("some arg 3")());
+
+    var something = "something"
+    print(fun_takes_fun_as_arg(fun(): String {
+            return "hello from the function that was passed to another function as a callback! " +
+            "and here is a variable from my parent context:" + something
+    }))
 }
 
 main()
