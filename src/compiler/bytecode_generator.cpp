@@ -187,7 +187,7 @@ namespace zero {
 
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(RET)
-                            ->withDestination(0)
+                            ->withDestination((unsigned) 0)
                             ->withComment("redundant null-return for non-returning functions "));
 
             programsStack.pop_back();
@@ -334,6 +334,55 @@ namespace zero {
             }
         }
 
+        unsigned int visitAnd(BinaryExpressionAstNode *binary,
+                              unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+        ) {
+            auto *falseLabel = new string("__and_false_" + to_string(binary->line) + "_" + to_string(binary->pos));
+            auto *trueLabel = new string("__and_true_" + to_string(binary->line) + "_" + to_string(binary->pos));
+            auto *endLabel = new string("__and_end_" + to_string(binary->line) + "_" + to_string(binary->pos));
+
+            unsigned int actualValueIndex1 = visitExpression(binary->left, preferredIndex);
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP_FALSE)
+                            ->withOp1(actualValueIndex1)
+                            ->withDestination(falseLabel)
+                            ->withComment("short circuit and jmp if v1 is false")
+            );
+            unsigned int actualValueIndex2 = visitExpression(binary->right, preferredIndex);
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP_TRUE)
+                            ->withOp1(actualValueIndex2)
+                            ->withDestination(trueLabel)
+                            ->withComment("short circuit and jmp if v2 is true")
+            );
+            currentProgram()->addLabel(falseLabel);
+            if (actualValueIndex1 != preferredIndex) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV_BOOLEAN)
+                                ->withOp1((unsigned) 0)
+                                ->withDestination(preferredIndex)
+                                ->withComment("short circuit and false branch")
+                );
+            }
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP)
+                            ->withDestination(endLabel)
+                            ->withComment("short circuit and false jmp to end")
+            );
+            currentProgram()->addLabel(trueLabel);
+            if (actualValueIndex2 != preferredIndex) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV_BOOLEAN)
+                                ->withOp1((unsigned) 1)
+                                ->withDestination(preferredIndex)
+                                ->withComment("short circuit and true branch")
+                );
+            }
+            currentProgram()->addLabel(endLabel);
+
+            return preferredIndex;
+        }
+
         unsigned int visitBinary(BinaryExpressionAstNode *binary,
                                  unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
         ) {
@@ -342,6 +391,8 @@ namespace zero {
                 //visitDot(binary);
             } else if (op == &Operator::ASSIGN) {
                 visitAssignment(binary, preferredIndex);
+            } else if (op == &Operator::AND) {
+                return visitAnd(binary, preferredIndex);
             } else {
                 unsigned int valueIndex1 = currentTempVariableAllocator()->alloc();
                 unsigned int valueIndex2 = currentTempVariableAllocator()->alloc();
@@ -516,6 +567,10 @@ namespace zero {
             if (stmt->expression != nullptr) {
                 valueIndex = currentTempVariableAllocator()->alloc();
                 actualValueIndex = visitExpression(stmt->expression, valueIndex);
+                if (actualValueIndex != valueIndex) {
+                    currentTempVariableAllocator()->release(valueIndex);
+                    valueIndex = actualValueIndex;
+                }
             }
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(RET)

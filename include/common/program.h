@@ -14,14 +14,8 @@ namespace zero {
         JMP,
         JMP_EQ,
         JMP_NEQ,
-        JMP_GT_INT,
-        JMP_GT_DECIMAL,
-        JMP_LT_INT,
-        JMP_LT_DECIMAL,
-        JMP_GTE_INT,
-        JMP_GTE_DECIMAL,
-        JMP_LTE_INT,
-        JMP_LTE_DECIMAL,
+        JMP_TRUE,
+        JMP_FALSE,
         MOV,
         MOV_FNC,
         MOV_INT,
@@ -79,6 +73,7 @@ namespace zero {
             unsigned int operand2 = 0;
         };
         union {
+            string *destinationAsLabel;
             unsigned int destination = 0;
         };
         string comment;
@@ -96,6 +91,8 @@ namespace zero {
         Instruction *withOp2(unsigned int op);
 
         Instruction *withDestination(unsigned int dest);
+
+        Instruction *withDestination(string* dest);
 
         Instruction *withComment(string comment);
 

@@ -23,26 +23,16 @@ namespace zero {
                     return "JMP_EQ";
                 case JMP_NEQ:
                     return "JMP_NEQ";
-                case JMP_GT_INT:
-                    return "JMP_GT";
-                case JMP_GT_DECIMAL:
-                    return "JMP_GT_DECIMAL";
-                case JMP_GTE_INT:
-                    return "JMP_GTE_INT";
-                case JMP_GTE_DECIMAL:
-                    return "JMP_GTE_DECIMAL";
-                case JMP_LT_INT:
-                    return "JMP_LT_INT";
-                case JMP_LT_DECIMAL:
-                    return "JMP_LT_DECIMAL";
-                case JMP_LTE_INT:
-                    return "JMP_LTE";
-                case JMP_LTE_DECIMAL:
-                    return "JMP_LTE_DECIMAL";
+                case JMP_TRUE:
+                    return "JMP_TRUE";
+                case JMP_FALSE:
+                    return "JMP_FALSE";
                 case MOV:
                     return "MOV";
                 case MOV_INT:
                     return "MOV_INT";
+                case MOV_BOOLEAN:
+                    return "MOV_BOOLEAN";
                 case MOV_DECIMAL:
                     return "MOV_DECIMAL";
                 case MOV_STRING:
@@ -199,8 +189,13 @@ namespace zero {
                 }
 
                 data.push_back(ins->operand2);
-                data.push_back(ins->destination);
 
+                if (ins->opCode == JMP || ins->opCode == JMP_FALSE || ins->opCode == JMP_TRUE) {
+                    auto labelIndex = labelPositions[ins->destinationAsLabel];
+                    data.push_back(labelIndex);
+                } else {
+                    data.push_back(ins->destination);
+                }
             }
 
             return reinterpret_cast<char *>(data.data());
@@ -265,6 +260,11 @@ namespace zero {
         return this;
     }
 
+    Instruction *Instruction::withDestination(string *dest) {
+        this->destinationAsLabel = dest;
+        return this;
+    }
+
     Instruction *Instruction::withComment(string comment) {
         this->comment = comment;
         return this;
@@ -284,6 +284,8 @@ namespace zero {
             op1Str = *operand1AsLabel;
         } else if (opCode == MOV_DECIMAL) {
             op1Str = to_string(operand1AsDecimal);
+        } else if (opCode == JMP || opCode == JMP_FALSE || opCode == JMP_TRUE) {
+            destinationStr = *destinationAsLabel;
         }
         return "\t" + opcodeStr + ", " + op1Str + ", " + op2Str + ", " + destinationStr + "\t# " + comment +
                "\n";

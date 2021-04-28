@@ -42,12 +42,12 @@ var main = fun() {
 	print("now i will call a function, generating a function based on the parameter i have passed")
 	print(fun_returning_fun("some arg 1")());
 	print(fun_returning_fun("some arg 2")());
-	print(fun_returning_fun("some arg 3")());
+    print(fun_returning_fun("some arg 3")());
 
     var something = "something"
     print(fun_takes_fun_as_arg(fun(): String {
-            return "hello from the function that was passed to another function as a callback! " +
-            "and here is a variable from my parent context:" + something
+        return "hello from the function that was passed to another function as a callback! " +
+        "and here is a variable from my parent context:" + something
     }))
 }
 

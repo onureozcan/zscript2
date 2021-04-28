@@ -170,9 +170,8 @@ namespace zero {
 
     void vm_run(Program *program) {
         static void *labels[] = {
-                &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_EQ, &&JMP_NEQ,
-                &&JMP_GT_INT, &&JMP_GT_DECIMAL, &&JMP_LT_INT, &&JMP_LT_DECIMAL, &&JMP_GTE_INT,
-                &&JMP_GTE_DECIMAL, &&JMP_LTE_INT, &&JMP_LTE_DECIMAL, &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,
+                &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_EQ, &&JMP_NEQ, &&JMP_TRUE, &&JMP_FALSE,
+                &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,
                 &&MOV_DECIMAL, &&MOV_STRING, &&CALL, &&CALL_NATIVE, &&ADD_INT, &&ADD_STRING,
                 &&ADD_DECIMAL, &&SUB_INT, &&SUB_DECIMAL, &&DIV_INT, &&DIV_DECIMAL,
                 &&MUL_INT, &&MUL_DECIMAL, &&MOD_INT, &&MOD_DECIMAL, &&CMP_EQ,
@@ -258,81 +257,19 @@ namespace zero {
             }
             GOTO_NEXT;
         }
-        JMP_GT_INT:
+        JMP_TRUE:
         {
             auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_int_value > v2.arithmetic_int_value) {
+            if (v1.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
             GOTO_NEXT;
         }
-        JMP_GT_DECIMAL:
+        JMP_FALSE:
         {
             auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_decimal_value > v2.arithmetic_decimal_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_LT_INT:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_int_value < v2.arithmetic_int_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_LT_DECIMAL:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_decimal_value < v2.arithmetic_decimal_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_GTE_INT:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_int_value >= v2.arithmetic_int_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_GTE_DECIMAL:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_decimal_value >= v2.arithmetic_decimal_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_LTE_INT:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_int_value <= v2.arithmetic_int_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_LTE_DECIMAL:
-        {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.arithmetic_decimal_value <= v2.arithmetic_decimal_value) {
+            if (!v1.arithmetic_int_value) {
                 instruction_ptr = &instructions[instruction_ptr->destination];
                 GOTO_CURRENT;
             }
