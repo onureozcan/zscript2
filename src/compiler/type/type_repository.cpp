@@ -9,6 +9,7 @@ namespace zero {
         Impl() {
             registerType(&TypeInfo::STRING);
             registerType(&TypeInfo::INT);
+            registerType(&TypeInfo::BOOLEAN);
             registerType(&TypeInfo::DECIMAL);
             registerType(&TypeInfo::ANY);
             registerType(&TypeInfo::T_VOID);

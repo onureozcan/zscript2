@@ -27,8 +27,9 @@ namespace zero {
     static const int VM_VALUE_TYPE_INT = 0;
     static const int VM_VALUE_TYPE_DECIMAL = 1;
     static const int VM_VALUE_TYPE_STRING = 2;
-    static const int VM_VALUE_TYPE_FUNCTION_REF = 3;
-    static const int VM_VALUE_TYPE_TYPE_OBJECT = 4;
+    static const int VM_VALUE_TYPE_BOOLEAN = 3;
+    static const int VM_VALUE_TYPE_FUNCTION_REF = 4;
+    static const int VM_VALUE_TYPE_TYPE_OBJECT = 5;
 
     z_fnc_ref_t* object_manager_create_fn_ref(unsigned int instruction_index, z_value_t *context_object);
 

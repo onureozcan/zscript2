@@ -27,6 +27,8 @@ namespace zero {
     Operator Operator::LTE = Operator("<=", 2);
     Operator Operator::GT = Operator(">", 2);
     Operator Operator::GTE = Operator(">=", 2);
+    Operator Operator::AND = Operator("&&", 2);
+    Operator Operator::OR = Operator("||", 2);
 
     Operator Operator::NOT = Operator("!", 1);
 
@@ -74,6 +76,23 @@ namespace zero {
                 return type1;
             }
         }
+
+        auto isNumericComparisonOperator =
+                op == &CMP_E || op == &CMP_NE || op == &LT || op == &LTE || op == &GT || op == &GTE;
+
+        if (isNumericComparisonOperator) {
+            if ((type1 == TypeInfo::INT.name || type1 == TypeInfo::DECIMAL.name)
+                && (type2 == TypeInfo::INT.name || type2 == TypeInfo::DECIMAL.name)) {
+                return TypeInfo::BOOLEAN.name;
+            }
+        }
+
+        if (op == &AND || op == &OR) {
+            if (type1 == type2 && type1 == TypeInfo::BOOLEAN.name) {
+                return TypeInfo::BOOLEAN.name;
+            }
+        }
+
         throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "` and `" + type2 + "`");
     }
 

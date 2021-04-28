@@ -7,6 +7,7 @@
 
 #define PRIMITIVE_TYPE_INT 1
 #define PRIMITIVE_TYPE_DOUBLE 2
+#define PRIMITIVE_TYPE_BOOLEAN 3
 
 namespace zero {
 

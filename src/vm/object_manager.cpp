@@ -35,6 +35,7 @@ namespace zero {
             } else return -1;
         }
         return type == PRIMITIVE_TYPE_DOUBLE ?
-               VM_VALUE_TYPE_DECIMAL : VM_VALUE_TYPE_INT;
+               VM_VALUE_TYPE_DECIMAL : type == VM_VALUE_TYPE_BOOLEAN ?
+                                       VM_VALUE_TYPE_BOOLEAN : VM_VALUE_TYPE_INT;
     }
 }

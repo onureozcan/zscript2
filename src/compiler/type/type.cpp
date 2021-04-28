@@ -4,6 +4,7 @@ namespace zero {
 
     TypeInfo TypeInfo::STRING = TypeInfo(TYPE_LITERAL_STRING, 0);
     TypeInfo TypeInfo::INT = TypeInfo(TYPE_LITERAL_INT, 0);
+    TypeInfo TypeInfo::BOOLEAN = TypeInfo(TYPE_LITERAL_BOOLEAN, 0);
     TypeInfo TypeInfo::DECIMAL = TypeInfo(TYPE_LITERAL_DECIMAL, 0);
     TypeInfo TypeInfo::ANY = TypeInfo(TYPE_LITERAL_ANY, 0);
     TypeInfo TypeInfo::T_VOID = TypeInfo(TYPE_LITERAL_VOID, 0);

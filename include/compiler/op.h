@@ -29,6 +29,8 @@ namespace zero {
         static Operator LTE;
         static Operator GT;
         static Operator GTE;
+        static Operator AND;
+        static Operator OR;
 
         // logical unary
         static Operator NOT;

@@ -5,6 +5,7 @@
 
 #define TYPE_LITERAL_STRING "String"
 #define TYPE_LITERAL_INT "int"
+#define TYPE_LITERAL_BOOLEAN "boolean"
 #define TYPE_LITERAL_DECIMAL "decimal"
 #define TYPE_LITERAL_ANY "Any"
 #define TYPE_LITERAL_VOID "Void"
@@ -30,6 +31,7 @@ namespace zero {
         static TypeInfo INT;
         static TypeInfo DECIMAL;
         static TypeInfo STRING;
+        static TypeInfo BOOLEAN;
         static TypeInfo ANY;
         static TypeInfo T_VOID;
 
