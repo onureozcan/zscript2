@@ -10,10 +10,10 @@ LineComment
         -> skip
     ;
 
-NEWLINE            : '\r' '\n' | '\n' | '\r';
+NEWLINE            : ['\r' '\n' | '\n' | '\r']+ -> skip;
 WS                 : [\t ]+ -> skip ;
 
-SEMICOL: ';';
+SEMICOL: ';'-> skip ;
 LPAREN: '(';
 RPAREN: ')';
 LCURLY: '{';

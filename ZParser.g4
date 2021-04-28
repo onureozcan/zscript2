@@ -9,13 +9,15 @@ root
         ;
 
 program
-        : statement*;
+        : statement*
+        ;
 
 statement
         : (expression
         | variableDeclaration
         | ret=RET expression?
-        )? statementEnd;
+        )
+        ;
 
 function
         : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
@@ -56,5 +58,3 @@ primaryExpresssion
       ;
 
 atom: (STRING|INT|DECIMAL|TRUE_|FALSE_|NULL_|IDENT|function);
-
-statementEnd: NEWLINE + | SEMICOL;
