@@ -134,7 +134,7 @@ namespace zero {
         }
 
         unsigned int visitFunction(FunctionAstNode *function,
-                                   unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                                   unsigned int preferredIndex = 0
         ) {
             // -- entry
             auto *fnLabel = new string("fun@" + to_string(function->line) + "_" + to_string(function->pos));
@@ -197,7 +197,7 @@ namespace zero {
         }
 
         unsigned int visitAtom(AtomicExpressionAstNode *atomic,
-                               unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                               unsigned int preferredIndex = 0
         ) {
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
@@ -335,7 +335,7 @@ namespace zero {
         }
 
         unsigned int visitAnd(BinaryExpressionAstNode *binary,
-                              unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                              unsigned int preferredIndex = 0
         ) {
             auto *falseLabel = new string("__and_false_" + to_string(binary->line) + "_" + to_string(binary->pos));
             auto *trueLabel = new string("__and_true_" + to_string(binary->line) + "_" + to_string(binary->pos));
@@ -346,7 +346,7 @@ namespace zero {
                     (new Instruction())->withOpCode(JMP_FALSE)
                             ->withOp1(actualValueIndex1)
                             ->withDestination(falseLabel)
-                            ->withComment("short circuit and jmp if v1 is false")
+                            ->withComment("short  circuit and jmp if v1 is false")
             );
             unsigned int actualValueIndex2 = visitExpression(binary->right, preferredIndex);
             currentProgram()->addInstruction(
@@ -383,8 +383,41 @@ namespace zero {
             return preferredIndex;
         }
 
+        unsigned int visitOr(BinaryExpressionAstNode *binary,
+                             unsigned int preferredIndex = 0
+        ) {
+            auto *endLabel = new string("__or_end_" + to_string(binary->line) + "_" + to_string(binary->pos));
+
+            unsigned int actualValueIndex1 = visitExpression(binary->left, preferredIndex);
+            if (actualValueIndex1 != preferredIndex) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV)
+                                ->withOp1(actualValueIndex1)
+                                ->withDestination(preferredIndex)
+                                ->withComment("short circuit and v1 branch, dest is " + to_string(preferredIndex))
+                );
+            }
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP_TRUE)
+                            ->withOp1(actualValueIndex1)
+                            ->withDestination(endLabel)
+                            ->withComment("short  circuit or jmp if v1 is true")
+            );
+            unsigned int actualValueIndex2 = visitExpression(binary->right, preferredIndex);
+            if (actualValueIndex2 != preferredIndex) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV)
+                                ->withOp1(actualValueIndex1)
+                                ->withDestination(preferredIndex)
+                                ->withComment("short circuit and v2 branch, dest is " + to_string(preferredIndex))
+                );
+            }
+            currentProgram()->addLabel(endLabel);
+            return preferredIndex;
+        }
+
         unsigned int visitBinary(BinaryExpressionAstNode *binary,
-                                 unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                                 unsigned int preferredIndex = 0
         ) {
             Operator *op = getOp(binary->opName, 2);
             if (op == &Operator::DOT) {
@@ -393,6 +426,8 @@ namespace zero {
                 visitAssignment(binary, preferredIndex);
             } else if (op == &Operator::AND) {
                 return visitAnd(binary, preferredIndex);
+            } else if (op == &Operator::OR) {
+                return visitOr(binary, preferredIndex);
             } else {
                 unsigned int valueIndex1 = currentTempVariableAllocator()->alloc();
                 unsigned int valueIndex2 = currentTempVariableAllocator()->alloc();
@@ -512,7 +547,7 @@ namespace zero {
         }
 
         unsigned int visitPrefix(PrefixExpressionAstNode *prefix,
-                                 unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                                 unsigned int preferredIndex = 0
         ) {
             unsigned int actualValueIndex = visitExpression(prefix->right, preferredIndex);
             auto op = getOp(prefix->opName, 1);
@@ -541,7 +576,7 @@ namespace zero {
         }
 
         unsigned int visitExpression(ExpressionAstNode *expression,
-                                     unsigned int preferredIndex = 0 /* 0 is null value, means no specific destination request*/
+                                     unsigned int preferredIndex = 0
         ) {
             switch (expression->expressionType) {
                 case ExpressionAstNode::TYPE_ATOMIC : {

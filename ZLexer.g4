@@ -10,8 +10,13 @@ LineComment
         -> skip
     ;
 
-NEWLINE            : ['\r' '\n' | '\n' | '\r']+ -> skip;
-WS                 : [\t ]+ -> skip ;
+NEWLINE:
+    '\r'? '\n' ->skip
+    ;
+
+WS  :
+    (' '|'\t')+ ->skip
+    ;
 
 SEMICOL: ';'-> skip ;
 LPAREN: '(';

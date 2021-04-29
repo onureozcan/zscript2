@@ -39,7 +39,7 @@ variableDeclaration
 
 expression
         :primaryExpresssion
-       | expression bop =DOT expression
+       | expression bop=DOT expression
        | expression methodCall=LPAREN (expression (COMMA expression)*)? RPAREN
        | prefix=MINUS expression
        | prefix=(TILDE|EX) expression

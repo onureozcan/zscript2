@@ -4,11 +4,17 @@ print(3 < -15.4) // false
 print(10 <= 10.0) // true
 print(-0.22 > - 0.23) // true
 
-print("boolean logic")
+print("boolean logic - and")
 print(false && false)
 print(true && false)
 print(true && true)
 print(false && true)
+
+print("boolean logic - or")
+print(false || false)
+print(true || false)
+print(true || true)
+print(false || true)
 
 var bool = fun (input:boolean):boolean {
 
@@ -16,7 +22,12 @@ var bool = fun (input:boolean):boolean {
     return input;
 }
 
-print("short circuit test")
+print("short circuit test - and")
 print(false && bool(true)) // should not be called
 print(true && bool(true)) // should be called
 print(true && false && bool(true)) // should not be called
+
+print("short circuit test - or")
+print(false || bool(true)) // should be called
+print(true || bool(true)) // should not be called
+print(false || false || bool(true)) // should be called
