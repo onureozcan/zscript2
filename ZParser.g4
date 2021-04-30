@@ -15,8 +15,20 @@ program
 statement
         : (expression
         | variableDeclaration
+        | ifStatement
         | ret=RET expression?
         )
+        ;
+
+ifStatement
+        : IF LPAREN (expression) RPAREN LCURLY
+            program
+          RCURLY
+          (ELSE ifStatement)?
+          (ELSE LCURLY
+            program
+          RCURLY
+          )?
         ;
 
 function

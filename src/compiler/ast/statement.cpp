@@ -21,6 +21,9 @@ namespace zero {
         } else if (statementContext->expression() != nullptr) {
             statement->type = TYPE_EXPRESSION;
             statement->expression = ExpressionAstNode::from(statementContext->expression(), fileName);
+        } else if (statementContext->ifStatement() != nullptr) {
+            statement->type = TYPE_IF;
+            statement->ifStatement = IfStatementAstNode::from(statementContext->ifStatement(), fileName);
         } else {
             free(statement);
             return nullptr;
@@ -33,6 +36,8 @@ namespace zero {
             return expression->toString();
         } else if (type == TYPE_RETURN) {
             return "return " + (expression == nullptr ? "" : expression->toString());
+        } else if (type == TYPE_IF) {
+            return ifStatement->toString();
         } else {
             return variable->toString();
         }

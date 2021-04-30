@@ -661,12 +661,50 @@ namespace zero {
             }
         }
 
+        void visitIfStatement(IfStatementAstNode *ifStatementAstNode) {
+            auto ifFalseLabel = new string(
+                    "__if_false__" + to_string(ifStatementAstNode->line) + "_" + to_string(ifStatementAstNode->pos));
+            auto ifEndLabel = new string(
+                    "__if_end__" + to_string(ifStatementAstNode->line) + "_" + to_string(ifStatementAstNode->pos));
+
+            unsigned tempIndex = currentTempVariableAllocator()->alloc();
+            unsigned int expressionValueIndex = visitExpression(ifStatementAstNode->expression, tempIndex);
+
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP_FALSE)
+                            ->withOp1(expressionValueIndex)
+                            ->withDestination(ifFalseLabel)
+                            ->withComment("if condition check")
+            );
+            currentTempVariableAllocator()->release(tempIndex);
+
+            auto statements = ifStatementAstNode->program->statements;
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
+            }
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP)
+                            ->withDestination(ifEndLabel)
+                            ->withComment("if goto end")
+            );
+            currentProgram()->addLabel(ifFalseLabel);
+            if (ifStatementAstNode->elseProgram != nullptr) {
+                statements = ifStatementAstNode->elseProgram->statements;
+                for (auto stmt: *statements) {
+                    visitStatement(stmt);
+                }
+            }
+            currentProgram()->addLabel(ifEndLabel);
+        }
+
         void visitStatement(StatementAstNode *stmt) {
             unsigned tempIndex = currentTempVariableAllocator()->alloc();
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
                 visitExpression(stmt->expression, tempIndex);
             } else if (stmt->type == StatementAstNode::TYPE_RETURN) {
                 visitReturn(stmt);
+            } else if (stmt->type == StatementAstNode::TYPE_IF) {
+                visitIfStatement(stmt->ifStatement);
             } else {
                 visitVariable(stmt->variable);
             }

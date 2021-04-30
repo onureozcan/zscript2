@@ -1,0 +1,19 @@
+if (2 > 3) {
+    print("if else did NOT work")
+} else if (2 == 3) {
+    print("if else did NOT work")
+} else {
+    print("if else worked")
+}
+
+if (2 < 3) { // if true
+    print("if true worked")
+} else {
+    print("if true did NOT work")
+}
+
+if (2 > 3) { // if false
+    print("if false did NOT work")
+} else {
+    print("if false worked")
+}

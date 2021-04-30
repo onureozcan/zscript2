@@ -50,6 +50,8 @@ RET: 'return';
 FALSE_: 'false';
 TRUE_: 'true';
 NULL_: 'null';
+IF  : 'if';
+ELSE: 'else';
 
 INT             : '0'|[1-9][0-9]* ;
 DECIMAL         : [0-9][0-9]* '.' [0-9]+ ;

@@ -84,21 +84,24 @@ namespace zero {
         string toString() override;
     };
 
+    class IfStatementAstNode;
+
     class StatementAstNode : public BaseAstNode {
     public:
         ExpressionAstNode *expression;
         VariableAstNode *variable;
+        IfStatementAstNode* ifStatement;
         int type;
 
         static const int TYPE_EXPRESSION = 0;
         static const int TYPE_VARIABLE_DECLARATION = 1;
         static const int TYPE_RETURN = 2;
+        static const int TYPE_IF = 3;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 
         string toString() override;
     };
-
 
     class ProgramAstNode : public BaseAstNode {
     public:
@@ -107,6 +110,16 @@ namespace zero {
         string contextObjectTypeName;
 
         static ProgramAstNode *from(ZParser::ProgramContext *programContext, string fileName);
+
+        string toString() override;
+    };
+
+    class IfStatementAstNode: public BaseAstNode {
+    public:
+        ExpressionAstNode* expression;
+        ProgramAstNode* program, *elseProgram;
+
+        static IfStatementAstNode *from(ZParser::IfStatementContext* ifContext, string fileName);
 
         string toString() override;
     };

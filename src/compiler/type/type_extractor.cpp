@@ -333,8 +333,24 @@ namespace zero {
                 visitExpression(stmt->expression);
             } else if (stmt->type == StatementAstNode::TYPE_RETURN) {
                 visitReturn(stmt);
+            } else if (stmt->type == StatementAstNode::TYPE_IF) {
+                visitIfStatement(stmt->ifStatement);
             } else {
                 visitVariable(stmt->variable);
+            }
+        }
+
+        void visitIfStatement(IfStatementAstNode *ifStatementAstNode) {
+            visitExpression(ifStatementAstNode->expression);
+            auto statements = ifStatementAstNode->program->statements;
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
+            }
+            if (ifStatementAstNode->elseProgram != nullptr) {
+                statements = ifStatementAstNode->elseProgram->statements;
+                for (auto stmt: *statements) {
+                    visitStatement(stmt);
+                }
             }
         }
 
