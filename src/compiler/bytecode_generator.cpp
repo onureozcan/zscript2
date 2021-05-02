@@ -697,6 +697,49 @@ namespace zero {
             currentProgram()->addLabel(ifEndLabel);
         }
 
+        void visitLoop(LoopAstNode *loop) {
+            auto loopBodyLabel = new string("__loop_body__" + to_string(loop->line) + "_" + to_string(loop->pos));
+            auto loopEndLabel = new string("__loop_end__" + to_string(loop->line) + "_" + to_string(loop->pos));
+            auto loopConditionLabel = new string(
+                    "__loop_condition__" + to_string(loop->line) + "_" + to_string(loop->pos));
+
+            auto loopConditionTempIndex = currentTempVariableAllocator()->alloc();
+            auto loopIterationResultTempIndex = currentTempVariableAllocator()->alloc();
+            unsigned int actualLoopConditionIndex = 0;
+            unsigned int actualLoopIterationResultIndex = 0;
+
+            if (loop->loopVariable != nullptr) {
+                visitVariable(loop->loopVariable);
+            }
+
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP)
+                            ->withDestination(loopConditionLabel)
+            );
+
+            currentProgram()->addLabel(loopBodyLabel);
+            auto statements = loop->program->statements;
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
+            }
+
+            if (loop->loopIterationExpression != nullptr) {
+                actualLoopIterationResultIndex = visitExpression(loop->loopIterationExpression, loopIterationResultTempIndex);
+            }
+
+            currentProgram()->addLabel(loopConditionLabel);
+            if (loop->loopConditionExpression != nullptr) {
+                actualLoopConditionIndex = visitExpression(loop->loopConditionExpression, loopConditionTempIndex);
+            }
+            currentProgram()->addInstruction(
+                    (new Instruction())->withOpCode(JMP_TRUE)
+                            ->withOp1(actualLoopConditionIndex)
+                            ->withDestination(loopBodyLabel)
+            );
+
+            currentProgram()->addLabel(loopEndLabel);
+        }
+
         void visitStatement(StatementAstNode *stmt) {
             unsigned tempIndex = currentTempVariableAllocator()->alloc();
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
@@ -705,6 +748,8 @@ namespace zero {
                 visitReturn(stmt);
             } else if (stmt->type == StatementAstNode::TYPE_IF) {
                 visitIfStatement(stmt->ifStatement);
+            } else if (stmt->type == StatementAstNode::TYPE_LOOP) {
+                visitLoop(stmt->loop);
             } else {
                 visitVariable(stmt->variable);
             }

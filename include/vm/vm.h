@@ -3,7 +3,7 @@
 #include <common/program.h>
 #include <common/logger.h>
 
-#define STACK_MAX 1000
+#define STACK_MAX 100000
 
 #define PRIMITIVE_TYPE_INT 1
 #define PRIMITIVE_TYPE_DOUBLE 2

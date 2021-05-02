@@ -18,7 +18,7 @@ WS  :
     (' '|'\t')+ ->skip
     ;
 
-SEMICOL: ';'-> skip ;
+SEMICOL: ';';
 LPAREN: '(';
 RPAREN: ')';
 LCURLY: '{';
@@ -52,6 +52,7 @@ TRUE_: 'true';
 NULL_: 'null';
 IF  : 'if';
 ELSE: 'else';
+FOR: 'for';
 
 INT             : '0'|[1-9][0-9]* ;
 DECIMAL         : [0-9][0-9]* '.' [0-9]+ ;

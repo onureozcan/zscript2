@@ -328,6 +328,26 @@ namespace zero {
             }
         }
 
+        void visitLoop(LoopAstNode *loop) {
+            if (loop->loopVariable != nullptr) {
+                visitVariable(loop->loopVariable);
+            }
+            if (loop->loopConditionExpression != nullptr) {
+                visitExpression(loop->loopConditionExpression);
+                if (loop->loopConditionExpression->typeName != TypeInfo::BOOLEAN.name) {
+                    errorExit("a boolean expression as a loop condition was expected" + currentNodeInfoStr());
+                }
+            }
+            if (loop->loopIterationExpression != nullptr) {
+                visitExpression(loop->loopIterationExpression);
+            }
+
+            auto statements = loop->program->statements;
+            for (auto stmt: *statements) {
+                visitStatement(stmt);
+            }
+        }
+
         void visitStatement(StatementAstNode *stmt) {
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
                 visitExpression(stmt->expression);
@@ -335,6 +355,8 @@ namespace zero {
                 visitReturn(stmt);
             } else if (stmt->type == StatementAstNode::TYPE_IF) {
                 visitIfStatement(stmt->ifStatement);
+            } else if (stmt->type == StatementAstNode::TYPE_LOOP) {
+                visitLoop(stmt->loop);
             } else {
                 visitVariable(stmt->variable);
             }

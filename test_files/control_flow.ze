@@ -17,3 +17,25 @@ if (2 > 3) { // if false
 } else {
     print("if false worked")
 }
+
+for (var i = 0; i<10; i = i+1) {
+    print(i)
+}
+
+print("prime numbers test")
+
+var fnc_isPrime = fun(num: int) : boolean {
+    for (var i = 2; i < num; i = i + 1) {
+        if (num % i == 0) {
+            return false
+        }
+    }
+    return true
+}
+
+for (var num = 2; num < 10; num = num + 1) {
+    var isPrime = fnc_isPrime(num)
+    if (isPrime) {
+        print(num)
+    }
+}

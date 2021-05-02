@@ -85,18 +85,21 @@ namespace zero {
     };
 
     class IfStatementAstNode;
+    class LoopAstNode;
 
     class StatementAstNode : public BaseAstNode {
     public:
         ExpressionAstNode *expression;
         VariableAstNode *variable;
         IfStatementAstNode* ifStatement;
+        LoopAstNode* loop;
         int type;
 
         static const int TYPE_EXPRESSION = 0;
         static const int TYPE_VARIABLE_DECLARATION = 1;
         static const int TYPE_RETURN = 2;
         static const int TYPE_IF = 3;
+        static const int TYPE_LOOP = 4;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 
@@ -120,6 +123,17 @@ namespace zero {
         ProgramAstNode* program, *elseProgram;
 
         static IfStatementAstNode *from(ZParser::IfStatementContext* ifContext, string fileName);
+
+        string toString() override;
+    };
+
+    class LoopAstNode: public BaseAstNode {
+    public:
+        VariableAstNode* loopVariable;
+        ExpressionAstNode* loopIterationExpression,*loopConditionExpression;
+        ProgramAstNode* program;
+
+        static LoopAstNode *from(ZParser::ForLoopContext* forLoopContext, string fileName);
 
         string toString() override;
     };

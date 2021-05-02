@@ -16,8 +16,20 @@ statement
         : (expression
         | variableDeclaration
         | ifStatement
+        | forLoop
+        | emptyStatement
         | ret=RET expression?
         )
+        ;
+
+emptyStatement
+        : SEMICOL
+        ;
+
+forLoop :
+        FOR LPAREN (variableDeclaration? SEMICOL expression? SEMICOL expression?) RPAREN LCURLY
+        program
+        RCURLY
         ;
 
 ifStatement

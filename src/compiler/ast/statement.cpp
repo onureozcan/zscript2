@@ -24,7 +24,11 @@ namespace zero {
         } else if (statementContext->ifStatement() != nullptr) {
             statement->type = TYPE_IF;
             statement->ifStatement = IfStatementAstNode::from(statementContext->ifStatement(), fileName);
+        } else if (statementContext->forLoop() != nullptr) {
+            statement->type = TYPE_LOOP;
+            statement->loop = LoopAstNode::from(statementContext->forLoop(), fileName);
         } else {
+            // empty statement
             free(statement);
             return nullptr;
         }
@@ -38,6 +42,8 @@ namespace zero {
             return "return " + (expression == nullptr ? "" : expression->toString());
         } else if (type == TYPE_IF) {
             return ifStatement->toString();
+        } else if (type == TYPE_LOOP) {
+            return loop->toString();
         } else {
             return variable->toString();
         }
