@@ -13,13 +13,14 @@ namespace zero {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
         vector<TypeInfo *> typeParameters;
+        vector<pair<string,string>> immediates;
         int indexCounter = 0;
     public:
 
         unsigned int addProperty(string name, TypeInfo *typeInfo) {
             if (propertiesMap.find(name) == propertiesMap.end()) {
                 auto descriptor = new PropertyDescriptor();
-                descriptor->name = typeInfo->name;
+                descriptor->name = name;
                 descriptor->typeInfo = typeInfo;
                 descriptor->index = indexCounter++;
                 propertiesMap[name] = descriptor;
@@ -53,6 +54,21 @@ namespace zero {
         void removeProperty(string propertyName) {
             propertiesMap.erase(propertyName);
         }
+
+        unsigned int addImmediate(string immediateData, TypeInfo *typeInfo) {
+            auto immediateName = "$" + typeInfo->name + "__" + immediateData;
+            immediates.push_back({immediateName, immediateData});
+            return addProperty(immediateName, typeInfo);
+        }
+
+        PropertyDescriptor *getImmediate(string immediateData, TypeInfo *typeInfo) {
+            auto immediateName = "$" + typeInfo->name + "__" + immediateData;
+            return getProperty(immediateName);
+        }
+
+        vector<pair<string,string>> getImmediateProperties() {
+            return immediates;
+        }
     };
 
     TypeInfo::TypeInfo(string name, int isCallable, int isNative) {
@@ -68,6 +84,10 @@ namespace zero {
 
     TypeInfo::PropertyDescriptor *TypeInfo::getProperty(string name) {
         return this->impl->getProperty(name);
+    }
+
+    TypeInfo::PropertyDescriptor *TypeInfo::getImmediate(string name, TypeInfo *type) {
+        return this->impl->getImmediate(name, type);
     }
 
     void TypeInfo::addParameter(TypeInfo *type) {
@@ -100,5 +120,13 @@ namespace zero {
 
     void TypeInfo::removeProperty(string propertyName) {
         return impl->removeProperty(propertyName);
+    }
+
+    unsigned int TypeInfo::addImmediate(string propertyName, TypeInfo *typeInfo) {
+        return impl->addImmediate(propertyName, typeInfo);
+    }
+
+    vector<pair<string,string>> TypeInfo::getImmediateProperties() {
+        return impl->getImmediateProperties();
     }
 }

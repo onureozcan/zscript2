@@ -153,6 +153,52 @@ namespace zero {
             return sub;
         }
 
+        void generateMovImmediate(string immediateData, string typeName, unsigned int preferredIndex) {
+            if (typeName == TypeInfo::INT.name) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV_INT)
+                                ->withOp1((unsigned) (stoi(immediateData)))
+                                ->withDestination(preferredIndex)
+                                ->withComment("load int into index " + to_string(preferredIndex) +
+                                              " in the current frame - " + immediateData)
+                );
+            } else if (typeName == TypeInfo::BOOLEAN.name) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV_BOOLEAN)
+                                ->withOp1((unsigned) (immediateData == "true" ? 1 : 0))
+                                ->withDestination(preferredIndex)
+                                ->withComment("load boolean into index " + to_string(preferredIndex) +
+                                              " in the current frame - " + immediateData)
+                );
+            } else if (typeName == TypeInfo::DECIMAL.name) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(MOV_DECIMAL)
+                                ->withOp1((float) atof(immediateData.c_str()))
+                                ->withDestination(preferredIndex)
+                                ->withComment("load decimal into index " + to_string(preferredIndex) +
+                                              " in the current frame - " + immediateData)
+                );
+            }
+        }
+
+        /**
+         * Immediate values require MOV_INT like instructions everytime they are being used.
+         * To reduce the overhead, all the immediates are manually extracted a variable into the current context
+         * this function moves them all at once at the beginning of the function
+         * @param typeInfo
+         */
+        void generateImmediates(TypeInfo *typeInfo) {
+            for (const auto &immediatePropertyInfo: typeInfo->getImmediateProperties()) {
+                auto immediateName = immediatePropertyInfo.first;
+                auto immediateData = immediatePropertyInfo.second;
+                auto immediatePropertyDescriptor = typeInfo->getProperty(immediateName);
+                auto immediateType = immediatePropertyDescriptor->typeInfo;
+                auto preferredIndex = immediatePropertyDescriptor->index;
+
+                generateMovImmediate(immediateData, immediateType->name, preferredIndex);
+            }
+        }
+
         unsigned int visitFunction(FunctionAstNode *function,
                                    unsigned int preferredIndex = 0
         ) {
@@ -173,6 +219,7 @@ namespace zero {
             onFunctionEnter(function, fnLabel);
 
             TypeInfo *contextObjectType = type(currentFunctionAst()->program->contextObjectTypeName);
+            generateImmediates(contextObjectType);
 
             // --- function body
 
@@ -220,34 +267,10 @@ namespace zero {
                                unsigned int preferredIndex = 0
         ) {
             switch (atomic->atomicType) {
-                case AtomicExpressionAstNode::TYPE_DECIMAL: {
-                    currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV_DECIMAL)
-                                    ->withOp1((float) atof(atomic->data.c_str()))
-                                    ->withDestination(preferredIndex)
-                                    ->withComment("load decimal into index " + to_string(preferredIndex) +
-                                                  " in the current frame - " + atomic->toString())
-                    );
-                    return preferredIndex;
-                }
-                case AtomicExpressionAstNode::TYPE_INT: {
-                    currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV_INT)
-                                    ->withOp1((unsigned) (stoi(atomic->data)))
-                                    ->withDestination(preferredIndex)
-                                    ->withComment("load int into index " + to_string(preferredIndex) +
-                                                  " in the current frame - " + atomic->toString())
-                    );
-                    return preferredIndex;
-                }
+                case AtomicExpressionAstNode::TYPE_DECIMAL:
+                case AtomicExpressionAstNode::TYPE_INT:
                 case AtomicExpressionAstNode::TYPE_BOOLEAN: {
-                    currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV_BOOLEAN)
-                                    ->withOp1((unsigned) (atomic->data == "true" ? 1 : 0))
-                                    ->withDestination(preferredIndex)
-                                    ->withComment("load boolean into index " + to_string(preferredIndex) +
-                                                  " in the current frame - " + atomic->toString())
-                    );
+                    generateMovImmediate(atomic->data, atomic->typeName, preferredIndex);
                     return preferredIndex;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
@@ -318,7 +341,7 @@ namespace zero {
             return preferredIndex;
         }
 
-        void visitAssignment(BinaryExpressionAstNode *binary, unsigned int preferredIndex) {
+        unsigned int visitAssignment(BinaryExpressionAstNode *binary, unsigned int preferredIndex) {
 
             unsigned int valueIndex = visitExpression(binary->right, preferredIndex);
 
@@ -352,6 +375,8 @@ namespace zero {
                 // DOT assign
                 // TODO
             }
+
+            return preferredIndex;
         }
 
         unsigned int visitAnd(BinaryExpressionAstNode *binary,
@@ -443,7 +468,7 @@ namespace zero {
             if (op == &Operator::DOT) {
                 //visitDot(binary);
             } else if (op == &Operator::ASSIGN) {
-                visitAssignment(binary, preferredIndex);
+                return visitAssignment(binary, preferredIndex);
             } else if (op == &Operator::AND) {
                 return visitAnd(binary, preferredIndex);
             } else if (op == &Operator::OR) {
@@ -552,14 +577,8 @@ namespace zero {
                                         to_string(actualValueIndex2) + " into " + to_string(preferredIndex))
                 );
 
-                if (actualValueIndex1 == valueIndex1) {
-                    currentTempVariableAllocator()->release(actualValueIndex1);
-                }
-
-                if (actualValueIndex2 == valueIndex2) {
-                    currentTempVariableAllocator()->release(actualValueIndex2);
-                }
-
+                currentTempVariableAllocator()->release(valueIndex1);
+                currentTempVariableAllocator()->release(valueIndex2);
                 return preferredIndex;
             }
 
@@ -702,11 +721,13 @@ namespace zero {
             for (auto stmt: *statements) {
                 visitStatement(stmt);
             }
-            currentProgram()->addInstruction(
-                    (new Instruction())->withOpCode(JMP)
-                            ->withDestination(ifEndLabel)
-                            ->withComment("if goto end")
-            );
+            if (ifStatementAstNode->elseProgram != nullptr) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(JMP)
+                                ->withDestination(ifEndLabel)
+                                ->withComment("if goto end")
+                );
+            }
             currentProgram()->addLabel(ifFalseLabel);
             if (ifStatementAstNode->elseProgram != nullptr) {
                 statements = ifStatementAstNode->elseProgram->statements;
@@ -723,7 +744,7 @@ namespace zero {
             auto loopConditionLabel = new string(
                     "__loop_condition__" + to_string(loop->line) + "_" + to_string(loop->pos));
             auto loopIterationLabel = new string(
-                    "__loop_condition__" + to_string(loop->line) + "_" + to_string(loop->pos));
+                    "__loop_iteration__" + to_string(loop->line) + "_" + to_string(loop->pos));
 
             loopsStack.push_back({
                                          loopBodyLabel, loopEndLabel, loopConditionLabel, loopIterationLabel

@@ -51,6 +51,12 @@ namespace zero {
 
         void removeProperty(string basicString);
 
+        unsigned int addImmediate(string basicString, TypeInfo *pInfo);
+
+        PropertyDescriptor *getImmediate(string name, TypeInfo *type);
+
+        vector<pair<string, string>> getImmediateProperties();
+
     private:
         Impl *impl;
     };

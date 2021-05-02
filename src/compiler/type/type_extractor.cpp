@@ -135,19 +135,45 @@ namespace zero {
                       selectedType->name.c_str(), parentContext->name.c_str());
         }
 
+        /**
+         * This converts immediate values into known properties in the current context
+         * so that MOV_{{IMMEDIATE_TYPE}} instructions can be avoided
+         * @param atomic
+         * @param type
+         */
+        void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeInfo *type) {
+            auto propertyName = atomic->data;
+            unsigned int memoryIndex;
+            auto localProperty = currentContext()->getImmediate(propertyName, type);
+            if (localProperty == nullptr) {
+                memoryIndex = currentContext()->addImmediate(propertyName, type);
+                log.debug("converted immediate value %s into property, stored in index %d", atomic->data.c_str(),
+                          memoryIndex);
+                localProperty = currentContext()->getImmediate(propertyName, type);
+            } else {
+                log.debug("found immediate value %s at index %d, using it instead", atomic->data.c_str(), memoryIndex);
+                memoryIndex = localProperty->index;
+            }
+            atomic->memoryIndex = memoryIndex;
+            atomic->memoryDepth = 0;
+            atomic->typeName = type->name;
+            atomic->atomicType = AtomicExpressionAstNode::TYPE_IDENTIFIER;
+            atomic->data = localProperty->name;
+        }
+
         void visitAtom(AtomicExpressionAstNode *atomic) {
             currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
-                    atomic->typeName = TypeInfo::DECIMAL.name;
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::DECIMAL);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_INT: {
-                    atomic->typeName = TypeInfo::INT.name;
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::INT);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_BOOLEAN: {
-                    atomic->typeName = TypeInfo::BOOLEAN.name;
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::BOOLEAN);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
