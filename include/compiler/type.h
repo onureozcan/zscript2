@@ -49,6 +49,8 @@ namespace zero {
 
         PropertyDescriptor *getProperty(string name);
 
+        void removeProperty(string basicString);
+
     private:
         Impl *impl;
     };

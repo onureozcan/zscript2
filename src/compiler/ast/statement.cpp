@@ -27,6 +27,10 @@ namespace zero {
         } else if (statementContext->forLoop() != nullptr) {
             statement->type = TYPE_LOOP;
             statement->loop = LoopAstNode::from(statementContext->forLoop(), fileName);
+        } else if (statementContext->BREAK() != nullptr) {
+            statement->type = TYPE_BREAK;
+        } else if (statementContext->CONTINUE() != nullptr) {
+            statement->type = TYPE_CONTINUE;
         } else {
             // empty statement
             free(statement);
@@ -44,6 +48,10 @@ namespace zero {
             return ifStatement->toString();
         } else if (type == TYPE_LOOP) {
             return loop->toString();
+        } else if (type == TYPE_BREAK) {
+            return "break";
+        } else if (type == TYPE_CONTINUE) {
+            return "continue";
         } else {
             return variable->toString();
         }

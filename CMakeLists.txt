@@ -50,3 +50,4 @@ add_executable(zero
         ${ANTLR_ZeroParser_CXX_OUTPUTS})
 
 target_link_libraries(zero antlr4_static)
+#set_target_properties(zero PROPERTIES COMPILE_FLAGS " -Ofast")

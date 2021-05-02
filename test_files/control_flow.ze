@@ -33,9 +33,26 @@ var fnc_isPrime = fun(num: int) : boolean {
     return true
 }
 
-for (var num = 2; num < 10; num = num + 1) {
-    var isPrime = fnc_isPrime(num)
-    if (isPrime) {
-        print(num)
+var isPrimeFncBasedTest = false
+
+if (isPrimeFncBasedTest) {
+    for (var num = 2; num < 100; num = num + 1) {
+        var isPrime = fnc_isPrime(num)
+        if (isPrime) {
+            print(num)
+        }
+    }
+} else {
+    for (var num = 2; num < 100000; num = num + 1) {
+        var isPrime = true
+        for (var i = 2; i < num; i = i + 1) {
+            if (num % i == 0) {
+                isPrime = false
+                break
+            }
+        }
+        if (isPrime) {
+            print(num)
+        }
     }
 }

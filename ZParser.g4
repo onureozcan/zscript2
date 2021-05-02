@@ -19,6 +19,8 @@ statement
         | forLoop
         | emptyStatement
         | ret=RET expression?
+        | BREAK
+        | CONTINUE
         )
         ;
 

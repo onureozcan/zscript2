@@ -100,6 +100,8 @@ namespace zero {
         static const int TYPE_RETURN = 2;
         static const int TYPE_IF = 3;
         static const int TYPE_LOOP = 4;
+        static const int TYPE_BREAK = 5;
+        static const int TYPE_CONTINUE = 6;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 

@@ -357,7 +357,7 @@ namespace zero {
                 visitIfStatement(stmt->ifStatement);
             } else if (stmt->type == StatementAstNode::TYPE_LOOP) {
                 visitLoop(stmt->loop);
-            } else {
+            } else if (stmt->type == StatementAstNode::TYPE_VARIABLE_DECLARATION) {
                 visitVariable(stmt->variable);
             }
         }

@@ -16,16 +16,19 @@ namespace zero {
         int indexCounter = 0;
     public:
 
-        unsigned int addProperty(string name, TypeInfo *pInfo) {
+        unsigned int addProperty(string name, TypeInfo *typeInfo) {
             if (propertiesMap.find(name) == propertiesMap.end()) {
                 auto descriptor = new PropertyDescriptor();
-                descriptor->name = pInfo->name;
-                descriptor->typeInfo = pInfo;
+                descriptor->name = typeInfo->name;
+                descriptor->typeInfo = typeInfo;
                 descriptor->index = indexCounter++;
                 propertiesMap[name] = descriptor;
                 return descriptor->index;
+            } else if (propertiesMap[name]->typeInfo->name == typeInfo->name) {
+                return propertiesMap[name]->index;
             } else
-                throw runtime_error("property already defined : `" + name + "`");
+                throw runtime_error("property already defined with a different type : `" + name + "`:`" +
+                                    propertiesMap[name]->typeInfo->name + "`");
         }
 
         PropertyDescriptor *getProperty(string name) {
@@ -45,6 +48,10 @@ namespace zero {
 
         int getPropertyCount() {
             return propertiesMap.size();
+        }
+
+        void removeProperty(string propertyName) {
+            propertiesMap.erase(propertyName);
         }
     };
 
@@ -89,5 +96,9 @@ namespace zero {
 
     int TypeInfo::getPropertyCount() {
         return impl->getPropertyCount();
+    }
+
+    void TypeInfo::removeProperty(string propertyName) {
+        return impl->removeProperty(propertyName);
     }
 }

@@ -60,6 +60,14 @@ namespace zero {
         }
 
     private:
+
+        typedef struct {
+            string *loopBodyLabel;
+            string *loopEndLabel;
+            string *loopConditionLabel;
+            string *loopIterationLabel;
+        } LoopLabelInfoStruct;
+
         Logger log = Logger("bytecode_generator");
 
         Program *rootProgram = nullptr;
@@ -68,7 +76,19 @@ namespace zero {
         vector<Program *> programsStack; // to keep track of current program
         vector<FunctionAstNode *> functionAstStack; // to keep track of current function ast
 
+        vector<LoopLabelInfoStruct> loopsStack; // this is usefull to generate break and continue codes
+
         map<string, TempVariableAllocator *> tempVariableAllocatorMap;
+
+        void errorExit(string error) {
+            log.error(error.c_str());
+            exit(1);
+        }
+
+        LoopLabelInfoStruct *currentLoopLabelSet() {
+            if (loopsStack.empty()) return nullptr;
+            return &loopsStack.back();
+        };
 
         Program *currentProgram() {
             if (programsStack.empty()) return nullptr;
@@ -702,6 +722,12 @@ namespace zero {
             auto loopEndLabel = new string("__loop_end__" + to_string(loop->line) + "_" + to_string(loop->pos));
             auto loopConditionLabel = new string(
                     "__loop_condition__" + to_string(loop->line) + "_" + to_string(loop->pos));
+            auto loopIterationLabel = new string(
+                    "__loop_condition__" + to_string(loop->line) + "_" + to_string(loop->pos));
+
+            loopsStack.push_back({
+                                         loopBodyLabel, loopEndLabel, loopConditionLabel, loopIterationLabel
+                                 });
 
             auto loopConditionTempIndex = currentTempVariableAllocator()->alloc();
             auto loopIterationResultTempIndex = currentTempVariableAllocator()->alloc();
@@ -723,14 +749,17 @@ namespace zero {
                 visitStatement(stmt);
             }
 
+            currentProgram()->addLabel(loopIterationLabel);
             if (loop->loopIterationExpression != nullptr) {
-                actualLoopIterationResultIndex = visitExpression(loop->loopIterationExpression, loopIterationResultTempIndex);
+                actualLoopIterationResultIndex = visitExpression(loop->loopIterationExpression,
+                                                                 loopIterationResultTempIndex);
             }
 
             currentProgram()->addLabel(loopConditionLabel);
             if (loop->loopConditionExpression != nullptr) {
                 actualLoopConditionIndex = visitExpression(loop->loopConditionExpression, loopConditionTempIndex);
             }
+
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(JMP_TRUE)
                             ->withOp1(actualLoopConditionIndex)
@@ -738,6 +767,37 @@ namespace zero {
             );
 
             currentProgram()->addLabel(loopEndLabel);
+
+            loopsStack.pop_back();
+
+            currentTempVariableAllocator()->release(loopConditionTempIndex);
+            currentTempVariableAllocator()->release(loopIterationResultTempIndex);
+        }
+
+        void visitBreak(StatementAstNode *statementAstNode) {
+            LoopLabelInfoStruct *currentLoopLabels = currentLoopLabelSet();
+            if (currentLoopLabels != nullptr) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(JMP)
+                                ->withDestination(currentLoopLabels->loopEndLabel)
+                );
+            } else {
+                errorExit("not inside a label " + statementAstNode->fileName + " at line " +
+                          to_string(statementAstNode->line));
+            }
+        }
+
+        void visitContinue(StatementAstNode *statementAstNode) {
+            LoopLabelInfoStruct *currentLoopLabels = currentLoopLabelSet();
+            if (currentLoopLabels != nullptr) {
+                currentProgram()->addInstruction(
+                        (new Instruction())->withOpCode(JMP)
+                                ->withDestination(currentLoopLabels->loopIterationLabel)
+                );
+            } else {
+                errorExit("not inside a label " + statementAstNode->fileName + " at line " +
+                          to_string(statementAstNode->line));
+            }
         }
 
         void visitStatement(StatementAstNode *stmt) {
@@ -750,6 +810,10 @@ namespace zero {
                 visitIfStatement(stmt->ifStatement);
             } else if (stmt->type == StatementAstNode::TYPE_LOOP) {
                 visitLoop(stmt->loop);
+            } else if (stmt->type == StatementAstNode::TYPE_BREAK) {
+                visitBreak(stmt);
+            } else if (stmt->type == StatementAstNode::TYPE_CONTINUE) {
+                visitContinue(stmt);
             } else {
                 visitVariable(stmt->variable);
             }
