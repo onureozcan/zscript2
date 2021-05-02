@@ -5,6 +5,8 @@
 #include <compiler/compiler.h>
 #include <common/logger.h>
 
+#include <ctime>
+
 using namespace zero;
 using namespace std;
 
@@ -17,6 +19,12 @@ int main(int argc, const char *argv[]) {
     }
     const char *filename = argv[1];
     auto program = Compiler().compileFile(string(filename));
+
+    clock_t begin = clock();
     vm_run(program);
+    clock_t end = clock();
+
+    double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << string(filename) << " took " << elapsedSecs << "sec(s)\n";
     return 0;
 }
