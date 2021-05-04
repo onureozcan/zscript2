@@ -343,22 +343,24 @@ namespace zero {
 
         unsigned int visitAssignment(BinaryExpressionAstNode *binary, unsigned int preferredIndex) {
 
-            unsigned int valueIndex = visitExpression(binary->right, preferredIndex);
-
             if (binary->left->expressionType == ExpressionAstNode::TYPE_ATOMIC) {
                 // assign without DOT operation
                 unsigned int memoryDepth = binary->left->memoryDepth;
                 unsigned int memoryIndex = binary->left->memoryIndex;
 
+                unsigned int valueIndex = visitExpression(binary->right, memoryIndex);
+
                 if (memoryDepth == 0) {
                     // set in current context
-                    currentProgram()->addInstruction(
-                            (new Instruction())->withOpCode(MOV)
-                                    ->withOp1(valueIndex)
-                                    ->withDestination(memoryIndex)
-                                    ->withComment("mov value at index " + to_string(valueIndex) + " into index " +
-                                                  to_string(memoryIndex) + " in the current frame")
-                    );
+                    if (valueIndex != memoryIndex) {
+                        currentProgram()->addInstruction(
+                                (new Instruction())->withOpCode(MOV)
+                                        ->withOp1(valueIndex)
+                                        ->withDestination(memoryIndex)
+                                        ->withComment("mov value at index " + to_string(valueIndex) + " into index " +
+                                                      to_string(memoryIndex) + " in the current frame")
+                        );
+                    }
                 } else {
                     // set in parent context
                     currentProgram()->addInstruction(

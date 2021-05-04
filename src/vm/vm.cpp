@@ -17,6 +17,10 @@
 #define VM_DEBUG(ARGS)
 #endif
 
+#define DESTINATION_PTR ((z_value_t*)((uintptr_t)context_object + instruction_ptr->destination))
+#define OP1_PTR ((z_value_t*)((uintptr_t)context_object + instruction_ptr->op1))
+#define OP2_PTR ((z_value_t*)((uintptr_t)context_object + instruction_ptr->op2))
+
 using namespace std;
 
 namespace zero {
@@ -146,12 +150,48 @@ namespace zero {
         return ret;
     }
 
-    vm_instruction_t *get_vm_instructions(Program *program, void *labels[]) {
+    vm_instruction_t *prepare_vm_instructions(Program *program, void **labels) {
         auto *bytes = (uint64_t *) program->toBytes();
         uint64_t count = bytes[0];
         bytes++;
         auto *instruction = (vm_instruction_t *) bytes;
         for (int i = 0; i < count; i++) {
+            auto opcode = instruction->opcode;
+            auto is_immediate = opcode == MOV_STRING ||
+                                opcode == MOV_BOOLEAN ||
+                                opcode == MOV_INT ||
+                                opcode == MOV_DECIMAL ||
+                                opcode == MOV_FNC ||
+                                opcode == FN_ENTER_HEAP ||
+                                opcode == FN_ENTER_STACK ||
+                                opcode == SET_IN_PARENT ||
+                                opcode == GET_IN_PARENT ||
+                                opcode == SET_IN_OBJECT ||
+                                opcode == GET_IN_OBJECT ||
+                                opcode == ARG_READ ||
+                                opcode == RET;
+
+            auto is_fn_enter = opcode <= FN_ENTER_HEAP;
+            auto is_jmp = !is_fn_enter && opcode <= JMP_FALSE;
+            auto is_using_destination_offset = opcode > JMP_FALSE && opcode < SET_IN_PARENT;
+
+            if (is_jmp) {
+                // jmp address pre-calculate
+                instruction->destination = (uint64_t) (&((vm_instruction_t *) bytes)[instruction->destination]);
+            }
+
+            if (is_using_destination_offset) {
+                // destination offset pre-calculate
+                instruction->destination *= sizeof(z_value_t);
+            }
+
+            if (!is_immediate) {
+                // value offset pre-calculate
+                instruction->op1 *= sizeof(z_value_t);
+                instruction->op2 *= sizeof(z_value_t);
+            }
+
+            // set branch address
             instruction->branch_addr = labels[instruction->opcode - 2]; // because first 2 opcodes are useless
             instruction++;
         }
@@ -177,11 +217,11 @@ namespace zero {
                 &&MUL_INT, &&MUL_DECIMAL, &&MOD_INT, &&MOD_DECIMAL, &&CMP_EQ,
                 &&CMP_NEQ, &&CMP_GT_INT, &&CMP_GT_DECIMAL, &&CMP_LT_INT, &&CMP_LT_DECIMAL,
                 &&CMP_GTE_INT, &&CMP_GTE_DECIMAL, &&CMP_LTE_INT, &&CMP_LTE_DECIMAL, &&CAST_DECIMAL,
-                &&NEG_INT, &&NEG_DECIMAL, &&PUSH, &&POP, &&ARG_READ, &&GET_IN_PARENT, &&SET_IN_PARENT,
-                &&GET_IN_OBJECT, &&SET_IN_OBJECT, &&RET
+                &&NEG_INT, &&NEG_DECIMAL, &&PUSH, &&POP, &&ARG_READ, &&GET_IN_PARENT,
+                &&GET_IN_OBJECT, &&SET_IN_PARENT, &&SET_IN_OBJECT, &&RET
         };
 
-        vm_instruction_t *instructions = get_vm_instructions(program, labels);
+        vm_instruction_t *instructions = prepare_vm_instructions(program, labels);
         vm_instruction_t *instruction_ptr = instructions;
 
         z_value_t *context_object = nullptr; // function local variables are found in here, initially null
@@ -234,83 +274,83 @@ namespace zero {
         }
         JMP:
         {
-            instruction_ptr = &instructions[instruction_ptr->destination];
+            instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
             GOTO_CURRENT;
         }
         JMP_EQ:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.uint_value == v2.uint_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            if (v1->arithmetic_int_value == v2->arithmetic_int_value) {
+                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
                 GOTO_CURRENT;
             }
             GOTO_NEXT;
         }
         JMP_NEQ:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            if (v1.uint_value != v2.uint_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            if (v1->arithmetic_int_value != v2->arithmetic_int_value) {
+                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
                 GOTO_CURRENT;
             }
             GOTO_NEXT;
         }
         JMP_TRUE:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            if (v1.arithmetic_int_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
+            auto v1 = OP1_PTR;
+            if (v1->arithmetic_int_value) {
+                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
                 GOTO_CURRENT;
             }
             GOTO_NEXT;
         }
         JMP_FALSE:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            if (!v1.arithmetic_int_value) {
-                instruction_ptr = &instructions[instruction_ptr->destination];
+            auto v1 = OP1_PTR;
+            if (!v1->arithmetic_int_value) {
+                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
                 GOTO_CURRENT;
             }
             GOTO_NEXT;
         }
         MOV:
         {
-            context_object[instruction_ptr->destination] = context_object[instruction_ptr->op1];
+            *DESTINATION_PTR = *OP1_PTR;
             GOTO_NEXT;
         }
         MOV_FNC:
         {
-            context_object[instruction_ptr->destination] = fvalue(instruction_ptr->op1, context_object);
+            *DESTINATION_PTR = fvalue(instruction_ptr->op1, context_object);
             GOTO_NEXT;
         }
         MOV_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(instruction_ptr->op1);
+            *DESTINATION_PTR = ivalue(instruction_ptr->op1);
             GOTO_NEXT;
         }
         MOV_BOOLEAN:
         {
-            context_object[instruction_ptr->destination] = bvalue(instruction_ptr->op1);
+            *DESTINATION_PTR = bvalue(instruction_ptr->op1);
             GOTO_NEXT;
         }
         MOV_DECIMAL:
         {
             double value = *(double *) &instruction_ptr->op1;
-            context_object[instruction_ptr->destination] = dvalue(value);
+            *DESTINATION_PTR = dvalue(value);
             GOTO_NEXT;
         }
         MOV_STRING:
         {
             auto *data = instruction_ptr->op1_string;
             auto *copy = new string(*data);
-            context_object[instruction_ptr->destination] = svalue(copy);
+            *DESTINATION_PTR = svalue(copy);
             GOTO_NEXT;
         }
         CALL:
         {
-            auto *fnc_ref = (z_fnc_ref_t *) context_object[instruction_ptr->op1].ptr_value;
+            auto *fnc_ref = (z_fnc_ref_t *) OP1_PTR->ptr_value;
 
             // push current instruction pointer
             push(pvalue(instruction_ptr + 1));
@@ -326,193 +366,185 @@ namespace zero {
         }
         CALL_NATIVE:
         {
-            auto native_handler = native_function_map[context_object[instruction_ptr->op1].uint_value];
-            context_object[instruction_ptr->destination] = native_handler();
+            auto native_handler = native_function_map[OP1_PTR->uint_value];
+            *DESTINATION_PTR = native_handler();
             GOTO_NEXT;
         }
         ADD_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    context_object[instruction_ptr->op1].arithmetic_int_value +
-                    context_object[instruction_ptr->op2].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    OP1_PTR->arithmetic_int_value + OP2_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         ADD_STRING:
         {
-            auto str1 = context_object[instruction_ptr->op1].string_value;
-            auto str2 = context_object[instruction_ptr->op2].string_value;
-            context_object[instruction_ptr->destination] = svalue(new string(*str1 + *str2));
+            auto str1 = OP1_PTR->string_value;
+            auto str2 = OP2_PTR->string_value;
+            *DESTINATION_PTR = svalue(new string(*str1 + *str2));
             GOTO_NEXT;
         }
         ADD_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    context_object[instruction_ptr->op1].arithmetic_decimal_value +
-                    context_object[instruction_ptr->op2].arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(
+                    OP1_PTR->arithmetic_decimal_value + OP2_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         SUB_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    context_object[instruction_ptr->op1].arithmetic_int_value -
-                    context_object[instruction_ptr->op2].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    OP1_PTR->arithmetic_int_value - OP2_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         SUB_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    context_object[instruction_ptr->op1].arithmetic_decimal_value -
-                    context_object[instruction_ptr->op2].arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(
+                    OP1_PTR->arithmetic_decimal_value - OP2_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         DIV_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    context_object[instruction_ptr->op1].arithmetic_int_value /
-                    context_object[instruction_ptr->op2].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    OP1_PTR->arithmetic_int_value / OP2_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         DIV_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    context_object[instruction_ptr->op1].arithmetic_decimal_value /
-                    context_object[instruction_ptr->op2].arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(
+                    OP1_PTR->arithmetic_decimal_value / OP2_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         MUL_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    context_object[instruction_ptr->op1].arithmetic_int_value *
-                    context_object[instruction_ptr->op2].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    OP1_PTR->arithmetic_int_value *
+                    OP2_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         MUL_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    context_object[instruction_ptr->op1].arithmetic_decimal_value *
-                    context_object[instruction_ptr->op2].arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(
+                    OP1_PTR->arithmetic_decimal_value *
+                    OP2_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         MOD_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    context_object[instruction_ptr->op1].arithmetic_int_value %
-                    context_object[instruction_ptr->op2].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    OP1_PTR->arithmetic_int_value % OP2_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         MOD_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    fmod(context_object[instruction_ptr->op1].arithmetic_decimal_value,
-                         context_object[instruction_ptr->op1].arithmetic_decimal_value));
+            *DESTINATION_PTR = dvalue(
+                    fmod(OP1_PTR->arithmetic_decimal_value, OP2_PTR->arithmetic_decimal_value));
             GOTO_NEXT;
         }
         CMP_EQ:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.uint_value == v2.uint_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value == v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_NEQ:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.uint_value != v2.uint_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value != v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GT_INT:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.arithmetic_int_value > v2.arithmetic_int_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value > v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GT_DECIMAL:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(
-                    v1.arithmetic_decimal_value > v2.arithmetic_int_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(
+                    v1->arithmetic_decimal_value > v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LT_INT:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.arithmetic_int_value < v2.arithmetic_int_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value < v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LT_DECIMAL:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(
-                    v1.arithmetic_decimal_value < v2.arithmetic_decimal_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(
+                    v1->arithmetic_decimal_value < v2->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CMP_GTE_INT:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.arithmetic_int_value >= v2.arithmetic_int_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value >= v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_GTE_DECIMAL:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(
-                    v1.arithmetic_decimal_value >= v2.arithmetic_decimal_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(
+                    v1->arithmetic_decimal_value >= v2->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CMP_LTE_INT:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(v1.arithmetic_int_value <= v2.arithmetic_int_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(v1->arithmetic_int_value <= v2->arithmetic_int_value);
             GOTO_NEXT;
         }
         CMP_LTE_DECIMAL:
         {
-            auto v1 = context_object[instruction_ptr->op1];
-            auto v2 = context_object[instruction_ptr->op2];
-            context_object[instruction_ptr->destination] = bvalue(
-                    v1.arithmetic_decimal_value <= v2.arithmetic_decimal_value);
+            auto v1 = OP1_PTR;
+            auto v2 = OP2_PTR;
+            *DESTINATION_PTR = bvalue(
+                    v1->arithmetic_decimal_value <= v2->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         CAST_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    (float) context_object[instruction_ptr->op1].arithmetic_int_value);
+            *DESTINATION_PTR = dvalue(
+                    (float) OP1_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         NEG_INT:
         {
-            context_object[instruction_ptr->destination] = ivalue(
-                    -1 * context_object[instruction_ptr->op1].arithmetic_int_value);
+            *DESTINATION_PTR = ivalue(
+                    -1 * OP1_PTR->arithmetic_int_value);
             GOTO_NEXT;
         }
         NEG_DECIMAL:
         {
-            context_object[instruction_ptr->destination] = dvalue(
-                    -1 * context_object[instruction_ptr->op1].arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(
+                    -1 * OP1_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         PUSH:
         {
-            push(context_object[instruction_ptr->op1]);
+            push(*OP1_PTR);
             GOTO_NEXT;
         }
         POP:
         {
-            context_object[instruction_ptr->destination] = pop();
+            *DESTINATION_PTR = pop();
             GOTO_NEXT;
         }
         ARG_READ:
         {
             auto argNumber = instruction_ptr->op1;
-            context_object[instruction_ptr->destination] =
+            *DESTINATION_PTR =
                     value_stack[base_pointer - 5 - argNumber]; // 5 is because of the calling convention
             GOTO_NEXT;
         }
@@ -524,9 +556,11 @@ namespace zero {
             for (int i = 0; i < depth; i++) {
                 parent_context = static_cast<z_value_t *>(parent_context[0].ptr_value);
             }
-            context_object[instruction_ptr->destination] = parent_context[index];
+            *DESTINATION_PTR = parent_context[index];
             GOTO_NEXT;
         }
+        GET_IN_OBJECT:
+        { GOTO_NEXT; }
         SET_IN_PARENT:
         {
             auto depth = instruction_ptr->op1;
@@ -538,8 +572,6 @@ namespace zero {
             parent_context[instruction_ptr->destination] = context_object[index];
             GOTO_NEXT;
         }
-        GET_IN_OBJECT:
-        { GOTO_NEXT; }
         SET_IN_OBJECT:
         { GOTO_NEXT; }
         RET:
@@ -563,7 +595,8 @@ namespace zero {
             auto parent_context_object = context_object;
             if (return_index_in_current) {
                 // move return value
-                parent_context_object[return_index_in_parent] = current_context_object[return_index_in_current];
+                *(z_value_t *) (((uintptr_t) parent_context_object) + return_index_in_parent) =
+                        current_context_object[return_index_in_current];
             }
             GOTO_CURRENT;
         }
