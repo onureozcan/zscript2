@@ -334,6 +334,7 @@ namespace zero {
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(opCode)
                             ->withOp1(functionIndex)
+                            ->withOp2(functionCall->params->size())
                             ->withDestination(preferredIndex)
                             ->withComment("calling functionCall at index " + to_string(functionIndex))
             );

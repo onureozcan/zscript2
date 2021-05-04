@@ -164,6 +164,7 @@ namespace zero {
                                 opcode == MOV_FNC ||
                                 opcode == FN_ENTER_HEAP ||
                                 opcode == FN_ENTER_STACK ||
+                                opcode == CALL ||
                                 opcode == SET_IN_PARENT ||
                                 opcode == GET_IN_PARENT ||
                                 opcode == SET_IN_OBJECT ||
@@ -350,8 +351,10 @@ namespace zero {
         }
         CALL:
         {
-            auto *fnc_ref = (z_fnc_ref_t *) OP1_PTR->ptr_value;
-
+            VM_DEBUG(("call, ip: %d, bp: %d, sp: %d", (instruction_ptr - instructions), base_pointer, stack_pointer));
+            auto *fnc_ref = (z_fnc_ref_t *) context_object[instruction_ptr->op1].ptr_value;
+            // push number of params pushed to stack
+            push(uvalue(instruction_ptr->op2));
             // push current instruction pointer
             push(pvalue(instruction_ptr + 1));
             // push current context pointer
@@ -527,8 +530,7 @@ namespace zero {
         }
         NEG_DECIMAL:
         {
-            *DESTINATION_PTR = dvalue(
-                    -1 * OP1_PTR->arithmetic_decimal_value);
+            *DESTINATION_PTR = dvalue(-1 * OP1_PTR->arithmetic_decimal_value);
             GOTO_NEXT;
         }
         PUSH:
@@ -544,8 +546,7 @@ namespace zero {
         ARG_READ:
         {
             auto argNumber = instruction_ptr->op1;
-            *DESTINATION_PTR =
-                    value_stack[base_pointer - 5 - argNumber]; // 5 is because of the calling convention
+            *DESTINATION_PTR = value_stack[base_pointer - 6 - argNumber]; // 6 is because of the calling convention
             GOTO_NEXT;
         }
         GET_IN_PARENT:
@@ -585,8 +586,6 @@ namespace zero {
             stack_pointer = base_pointer;
             base_pointer = pop().uint_value;
 
-            VM_DEBUG(("ret. sp: %d, bp:%d", stack_pointer, base_pointer));
-
             auto return_index_in_parent = pop().uint_value;
             auto return_index_in_current = instruction_ptr->destination;
             auto current_context_object = context_object;
@@ -598,6 +597,10 @@ namespace zero {
                 *(z_value_t *) (((uintptr_t) parent_context_object) + return_index_in_parent) =
                         current_context_object[return_index_in_current];
             }
+            auto number_of_params_pushed_to_stack = pop().uint_value;
+            stack_pointer -= number_of_params_pushed_to_stack;
+            VM_DEBUG(
+                    ("ret, next_ip: %d, sp: %d, bp:%d", (instruction_ptr - instructions), stack_pointer, base_pointer));
             GOTO_CURRENT;
         }
     }
