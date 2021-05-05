@@ -130,8 +130,13 @@ namespace zero {
 
         string toString() {
             string instructionCode;
+            int i = 0;
             for (const auto &ins: instructions) {
-                instructionCode += ins->toString();
+                if (ins->opCode != LABEL) {
+                    instructionCode += to_string(i++) + ":" + ins->toString();
+                } else {
+                    instructionCode += ins->toString();
+                }
             }
             return "program of file at `" + fileName + "`:\n" + instructionCode;
         }
