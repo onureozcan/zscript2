@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vm/vm.h>
 
 using namespace std;

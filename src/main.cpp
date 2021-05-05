@@ -21,7 +21,7 @@ int main(int argc, const char *argv[]) {
     auto program = Compiler().compileFile(string(filename));
 
     clock_t begin = clock();
-    vm_run(program);
+    vm_run_direct_threading(program);
     clock_t end = clock();
 
     double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
