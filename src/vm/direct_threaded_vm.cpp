@@ -76,7 +76,7 @@ namespace zero {
         return (vm_instruction_t *) bytes;
     }
 
-    void vm_run_direct_threading(Program *program) {
+    void vm_run(Program *program) {
         static void *labels[] = {
                 &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_EQ, &&JMP_NEQ, &&JMP_TRUE, &&JMP_FALSE,
                 &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,

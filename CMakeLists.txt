@@ -3,6 +3,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.7 FATAL_ERROR)
 
 project("Zero")
 
+option(JIT_AVAILABLE "JIT available for the target arch" OFF)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # compiler must be 11 or 14
@@ -42,6 +44,13 @@ include_directories("include")
 
 #source files
 file(GLOB_RECURSE SRC "src/*.cpp")
+
+if (JIT_AVAILABLE)
+    list(FILTER SRC EXCLUDE REGEX ".*direct_threaded_vm.cpp$")
+else ()
+    list(FILTER SRC EXCLUDE REGEX ".*context_threaded_vm.cpp$")
+endif ()
+
 
 # add generated grammar to demo binary target
 add_executable(zero

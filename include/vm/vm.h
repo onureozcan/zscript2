@@ -51,7 +51,6 @@ namespace zero {
     // a native function manages stack manually. no calling convention yet
     typedef z_value_t (*z_native_fnc_t)();
 
-    void vm_run_direct_threading(Program *program);
+    void vm_run(Program *program);
 
-    void vm_run_context_threading(Program *program);
 }
