@@ -17,7 +17,19 @@ namespace zero {
     int64_t stack_pointer;
     z_value_t value_stack[STACK_MAX];
 
-    vector<z_native_fnc_t> native_function_map = {native_print};
+    vector<z_native_fnc_t> native_function_map;
+
+    void init_native_functions() {
+        native_function_map.push_back(native_print);
+    }
+
+    z_native_fnc_t get_native_fnc_at(uint64_t index) {
+        return native_function_map[index];
+    }
+
+    vector<z_native_fnc_t> get_native_functions() {
+        return native_function_map;
+    }
 
     z_value_t native_print() {
         z_value_t z_value = pop();

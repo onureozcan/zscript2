@@ -9,7 +9,7 @@ var fnc_isPrime = fun(num: int) : boolean {
     return true
 }
 var isPrimeFncBasedTest = false
-var testLimit = 100000
+var testLimit = 10
 
 if (isPrimeFncBasedTest) {
     for (var num = 2; num < testLimit; num = num + 1) {

@@ -29,5 +29,10 @@ namespace zero {
 
     inline z_value_t fvalue(unsigned int instruction_index, z_value_t *context_object);
 
-    extern vector<z_native_fnc_t> native_function_map;
+    void init_native_functions();
+
+    z_native_fnc_t get_native_fnc_at(uint64_t index);
+
+    vector<z_native_fnc_t> get_native_functions();
+
 }

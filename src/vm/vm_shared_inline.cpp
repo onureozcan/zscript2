@@ -85,8 +85,9 @@ namespace zero {
     inline void init_call_context(z_value_t *context_object, z_value_t *parent_context) {
         context_object[0] = pvalue(parent_context); // 0th index is a pointer to parent
         if (parent_context == nullptr) {
+            vector<z_native_fnc_t> functions = get_native_functions();
             // init native functions
-            for (unsigned int i = 0; i < native_function_map.size(); i++) {
+            for (unsigned int i = 0; i < functions.size(); i++) {
                 context_object[i + 1] = uvalue(i);
             }
         }
