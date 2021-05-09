@@ -38,7 +38,7 @@ namespace zero {
 
     bool get_is_immediate(uint64_t opcode);
 
-    z_value_t *context_object asm ("r12");;
+    register z_value_t *context_object asm ("r12");;
     int64_t base_pointer;
     uint64_t call_depth;
 
@@ -462,6 +462,7 @@ namespace zero {
             auto is_op2_unused = opcode == FN_ENTER_HEAP || opcode == FN_ENTER_STACK ||
                                  (opcode > JMP_NEQ && opcode < CALL) ||
                                  (opcode >= CAST_DECIMAL && opcode <= ARG_READ);
+            auto is_dest_unused = opcode < MOV;
 
             if (is_using_destination_offset) {
                 // destination offset pre-calculate
@@ -497,7 +498,9 @@ namespace zero {
                 if (!is_op2_unused) {
                     a.mov(op2_reg, op2);
                 }
-                a.mov(dest_reg, destination);
+                if (!is_dest_unused) {
+                    a.mov(dest_reg, destination);
+                }
                 a.call(handler_address);
 
                 if (is_jmp) {
