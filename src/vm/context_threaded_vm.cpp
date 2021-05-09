@@ -38,7 +38,7 @@ namespace zero {
 
     bool get_is_immediate(uint64_t opcode);
 
-    z_value_t *context_object;
+    z_value_t *context_object asm ("r12");;
     int64_t base_pointer;
     uint64_t call_depth;
 
@@ -79,14 +79,12 @@ namespace zero {
     }
 
     uint64_t z_handler_JMP_EQ(z_op_t op1, z_op_t op2, z_op_t dest) {
-
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         return (v1->arithmetic_int_value == v2->arithmetic_int_value);
     }
 
     uint64_t z_handler_JMP_NEQ(z_op_t op1, z_op_t op2, z_op_t dest) {
-
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         return (v1->arithmetic_int_value != v2->arithmetic_int_value);
@@ -104,29 +102,36 @@ namespace zero {
 
     uint64_t z_handler_MOV(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = *OP1_PTR;
+        return 0;
     }
 
     uint64_t z_handler_MOV_FNC(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = fvalue(op1.uint_vaLue, context_object);
+        return 0;
     }
 
     uint64_t z_handler_MOV_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(op1.int_value);
+        return 0;
     }
 
     uint64_t z_handler_MOV_BOOLEAN(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = bvalue(op1.int_value);
+        return 0;
     }
 
     uint64_t z_handler_MOV_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         double value = *(double *) op1.uint_vaLue;
         *DESTINATION_PTR = dvalue(value);
+        return 0;
     }
 
     uint64_t z_handler_MOV_STRING(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto *data = op1.str_value;
+        VM_DEBUG(("mov str, %s", op1.str_value->c_str()));
         auto *copy = new string(*data);
         *DESTINATION_PTR = svalue(copy);
+        return 0;
     }
 
     uint64_t z_handler_CALL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -146,82 +151,97 @@ namespace zero {
     uint64_t z_handler_CALL_NATIVE(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto native_handler = get_native_fnc_at(OP1_PTR->uint_value);
         *DESTINATION_PTR = native_handler();
+        return 0;
     }
 
     uint64_t z_handler_ADD_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 OP1_PTR->arithmetic_int_value + OP2_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_ADD_STRING(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto str1 = OP1_PTR->string_value;
         auto str2 = OP2_PTR->string_value;
         *DESTINATION_PTR = svalue(new string(*str1 + *str2));
+        return 0;
     }
 
     uint64_t z_handler_ADD_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 OP1_PTR->arithmetic_decimal_value + OP2_PTR->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_SUB_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 OP1_PTR->arithmetic_int_value - OP2_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_SUB_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 OP1_PTR->arithmetic_decimal_value - OP2_PTR->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_DIV_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 OP1_PTR->arithmetic_int_value / OP2_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_DIV_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 OP1_PTR->arithmetic_decimal_value / OP2_PTR->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_MUL_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 OP1_PTR->arithmetic_int_value *
                 OP2_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_MUL_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 OP1_PTR->arithmetic_decimal_value *
                 OP2_PTR->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_MOD_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 OP1_PTR->arithmetic_int_value % OP2_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_MOD_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 fmod(OP1_PTR->arithmetic_decimal_value, OP2_PTR->arithmetic_decimal_value));
+        return 0;
     }
 
     uint64_t z_handler_CMP_EQ(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value == v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_NEQ(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value != v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_GT_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value > v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_GT_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -229,12 +249,14 @@ namespace zero {
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(
                 v1->arithmetic_decimal_value > v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_LT_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value < v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_LT_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -242,12 +264,14 @@ namespace zero {
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(
                 v1->arithmetic_decimal_value < v2->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_GTE_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value >= v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_GTE_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -255,12 +279,14 @@ namespace zero {
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(
                 v1->arithmetic_decimal_value >= v2->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_LTE_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(v1->arithmetic_int_value <= v2->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_CMP_LTE_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -268,33 +294,40 @@ namespace zero {
         auto v2 = OP2_PTR;
         *DESTINATION_PTR = bvalue(
                 v1->arithmetic_decimal_value <= v2->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_CAST_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(
                 (float) OP1_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_NEG_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = ivalue(
                 -1 * OP1_PTR->arithmetic_int_value);
+        return 0;
     }
 
     uint64_t z_handler_NEG_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = dvalue(-1 * OP1_PTR->arithmetic_decimal_value);
+        return 0;
     }
 
     uint64_t z_handler_PUSH(z_op_t op1, z_op_t op2, z_op_t dest) {
         push(*OP1_PTR);
+        return 0;
     }
 
     uint64_t z_handler_POP(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = pop();
+        return 0;
     }
 
     uint64_t z_handler_ARG_READ(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto argNumber = op1.int_value;
         *DESTINATION_PTR = value_stack[base_pointer - 5 - argNumber]; // 5 is because of the calling convention
+        return 0;
     }
 
     uint64_t z_handler_GET_IN_PARENT(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -305,9 +338,12 @@ namespace zero {
             parent_context = static_cast<z_value_t *>(parent_context[0].ptr_value);
         }
         *DESTINATION_PTR = parent_context[index];
+        return 0;
     }
 
-    uint64_t z_handler_GET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {}
+    uint64_t z_handler_GET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {
+        return 0;
+    }
 
     uint64_t z_handler_SET_IN_PARENT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto depth = op1.uint_vaLue;
@@ -317,9 +353,12 @@ namespace zero {
             parent_context = static_cast<z_value_t *>(parent_context[0].ptr_value);
         }
         parent_context[dest.uint_vaLue] = context_object[index];
+        return 0;
     }
 
-    uint64_t z_handler_SET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {}
+    uint64_t z_handler_SET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {
+        return 0;
+    }
 
     uint64_t z_handler_RET(z_op_t op1, z_op_t op2, z_op_t dest) {
         call_depth--;
@@ -343,6 +382,7 @@ namespace zero {
         }
         auto number_of_params_pushed_to_stack = pop().uint_value;
         stack_pointer -= number_of_params_pushed_to_stack;
+        return 0;
     }
 
     uint64_t (*func_ptrs[])(z_op_t, z_op_t, z_op_t) =
@@ -419,6 +459,9 @@ namespace zero {
             auto is_fn_enter = opcode <= FN_ENTER_STACK;
             auto is_jmp = !is_fn_enter && opcode <= JMP_FALSE;
             auto is_using_destination_offset = opcode > JMP_FALSE && opcode < SET_IN_PARENT;
+            auto is_op2_unused = opcode == FN_ENTER_HEAP || opcode == FN_ENTER_STACK ||
+                                 (opcode > JMP_NEQ && opcode < CALL) ||
+                                 (opcode >= CAST_DECIMAL && opcode <= ARG_READ);
 
             if (is_using_destination_offset) {
                 // destination offset pre-calculate
@@ -451,7 +494,9 @@ namespace zero {
                 } else {
                     a.mov(op1_reg, op1);
                 }
-                a.mov(op2_reg, op2);
+                if (!is_op2_unused) {
+                    a.mov(op2_reg, op2);
+                }
                 a.mov(dest_reg, destination);
                 a.call(handler_address);
 
@@ -496,12 +541,12 @@ namespace zero {
         code.init(rt.environment());      // Initialize code to match the JIT environment.
         x86::Assembler a(&code);          // Create and attach x86::Assembler to code.
 
-        StringLogger logger;         // Logger should always survive CodeHolder.
-        code.setLogger(&logger);     // Attach the `logger` to `code` holder.
+        //StringLogger logger;         // Logger should always survive CodeHolder.
+        //code.setLogger(&logger);     // Attach the `logger` to `code` holder.
 
         compile_dispatch_function(program, a);
 
-        printf("generated dispatch program: %s\n", logger.data());
+        //printf("generated dispatch program: %s\n", logger.data());
 
         z_jit_fnc fn;                          // Holds address to the generated function.
         Error err = rt.add(&fn, &code);   // Add the generated code to the runtime.
