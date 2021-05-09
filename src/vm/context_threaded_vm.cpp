@@ -6,6 +6,8 @@
 
 #include <cmath>
 
+#define ASMJIT_STATIC
+
 #include <asmjit/asmjit.h>
 
 //#define VM_DEBUG_ACTIVE
@@ -49,6 +51,7 @@ namespace zero {
         push(uvalue(base_pointer));
         base_pointer = stack_pointer;
         call_depth++;
+        return 0;
     }
 
     uint64_t z_handler_FN_ENTER_STACK(z_op_t local_values_size, z_op_t op2, z_op_t dest) {
@@ -67,10 +70,12 @@ namespace zero {
         }
 
         VM_DEBUG(("stack allocated %d, sp: %d", local_values_size, stack_pointer));
+        return 0;
     }
 
     uint64_t z_handler_JMP(z_op_t op1, z_op_t op2, z_op_t dest) {
         // INLINED
+        return 0;
     }
 
     uint64_t z_handler_JMP_EQ(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -368,10 +373,24 @@ namespace zero {
              z_handler_GET_IN_OBJECT, z_handler_SET_IN_PARENT,
              z_handler_SET_IN_OBJECT, z_handler_RET};
 
+    uint64_t test(z_op_t op1, z_op_t op2, z_op_t dest) {
+        //VM_DEBUG(("test method %d, %d, %d", op1, op2, dest));
+        return 0;
+    }
+
     // Signature of the generated function.
     typedef int (*z_jit_fnc)();
 
     void compile_dispatch_function(Program *program, x86::Assembler &a) {
+#ifdef linux
+        auto op1_reg = x86::rdi;
+        auto op2_reg = x86::rsi;
+        auto dest_reg = x86::rdx;
+#else
+        auto op1_reg = x86::rcx;
+        auto op2_reg = x86::rdx;
+        auto dest_reg = x86::r8;
+#endif
         auto *bytes = (uint64_t *) program->toBytes();
         uint64_t count = bytes[0];
         bytes++;
@@ -413,7 +432,11 @@ namespace zero {
             }
 
             a.bind(label);
-
+            if (is_fn_enter) {
+                a.push(x86::rbp);
+                a.mov(x86::rbp, x86::rsp);
+                a.sub(x86::rsp, sizeof(uint64_t) * 4);
+            }
             if (instruction->opcode == JMP) {
                 // direct jumps can be compiled, no need to call
                 auto target_label = labels.at(instruction->destination);
@@ -421,16 +444,15 @@ namespace zero {
 
             } else {
                 // bind parameters
-                // TODO: rdi, rsi, rdx on linux
                 if (opcode == MOV_FNC) {
                     // to call a function, we need to convert it to real address
                     auto target_label = labels.at(instruction->op1);
-                    a.lea(x86::rcx, x86::ptr(target_label));
+                    a.lea(op1_reg, x86::ptr(target_label));
                 } else {
-                    a.mov(x86::rcx, op1);
+                    a.mov(op1_reg, op1);
                 }
-                a.mov(x86::rdx, op2);
-                a.mov(x86::r8, destination);
+                a.mov(op2_reg, op2);
+                a.mov(dest_reg, destination);
                 a.call(handler_address);
 
                 if (is_jmp) {
@@ -441,6 +463,8 @@ namespace zero {
                 } else if (opcode == CALL) {
                     a.call(x86::rax);
                 } else if (opcode == RET) {
+                    a.add(x86::rsp, sizeof(uint64_t) * 4);
+                    a.pop(x86::rbp);
                     a.ret();
                 }
             }
@@ -476,8 +500,6 @@ namespace zero {
         code.setLogger(&logger);     // Attach the `logger` to `code` holder.
 
         compile_dispatch_function(program, a);
-        a.mov(x86::eax, 1);               // Move one to eax register.
-        a.ret();                          // Return from function.
 
         printf("generated dispatch program: %s\n", logger.data());
 
@@ -493,6 +515,7 @@ namespace zero {
     }
 
     void vm_run(Program *program) {
+        test({0}, {0}, {0});
         base_pointer = stack_pointer;
         push(pvalue(nullptr));
         init_native_functions();

@@ -40,10 +40,7 @@ antlr_target(ZeroParser ZParser.g4 PARSER
 include_directories(${ANTLR_ZeroLexer_OUTPUT_DIR})
 include_directories(${ANTLR_ZeroParser_OUTPUT_DIR})
 
-include("lib/asmjit/CMakeLists.txt")
-
-# add asmjit
-include_directories(${ASMJIT_DIRS}/src)
+include_directories("lib/asmjit/src")
 
 message(STATUS "asmjt dir = ${ASMJIT_DIRS}")
 
@@ -55,6 +52,9 @@ file(GLOB_RECURSE SRC "src/*.cpp")
 
 if (JIT_AVAILABLE)
     list(FILTER SRC EXCLUDE REGEX ".*direct_threaded_vm.cpp$")
+    file(GLOB_RECURSE ASM_JIT_SRC "lib/asmjit/src/*.cpp")
+    list(APPEND SRC ${ASM_JIT_SRC})
+    message(STATUS "jit on, ${SRC}")
 else ()
     list(FILTER SRC EXCLUDE REGEX ".*context_threaded_vm.cpp$")
 endif ()
@@ -67,5 +67,5 @@ add_executable(zero
         ${ANTLR_ZeroParser_CXX_OUTPUTS})
 
 target_link_libraries(zero antlr4_static)
-target_link_libraries(zero ${ASMJIT_LIBS})
+#target_link_libraries(zero ${ASMJIT_LIBS})
 #set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
