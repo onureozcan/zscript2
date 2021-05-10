@@ -226,75 +226,81 @@ namespace zero {
     uint64_t z_handler_CMP_EQ(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value == v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value == v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_NEQ(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value != v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value != v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_GT_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value > v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value > v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_GT_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(
-                v1->arithmetic_decimal_value > v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_decimal_value > v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_LT_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value < v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value < v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_LT_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(
-                v1->arithmetic_decimal_value < v2->arithmetic_decimal_value);
-        return 0;
+        auto ret = v1->arithmetic_decimal_value < v2->arithmetic_decimal_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_GTE_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value >= v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value >= v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_GTE_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(
-                v1->arithmetic_decimal_value >= v2->arithmetic_decimal_value);
-        return 0;
+        auto ret = v1->arithmetic_decimal_value >= v2->arithmetic_decimal_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_LTE_INT(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(v1->arithmetic_int_value <= v2->arithmetic_int_value);
-        return 0;
+        auto ret = v1->arithmetic_int_value <= v2->arithmetic_int_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CMP_LTE_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto v1 = OP1_PTR;
         auto v2 = OP2_PTR;
-        *DESTINATION_PTR = bvalue(
-                v1->arithmetic_decimal_value <= v2->arithmetic_decimal_value);
-        return 0;
+        auto ret = v1->arithmetic_decimal_value <= v2->arithmetic_decimal_value;
+        *DESTINATION_PTR = bvalue(ret);
+        return ret;
     }
 
     uint64_t z_handler_CAST_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
@@ -413,11 +419,6 @@ namespace zero {
              z_handler_GET_IN_OBJECT, z_handler_SET_IN_PARENT,
              z_handler_SET_IN_OBJECT, z_handler_RET};
 
-    uint64_t test(z_op_t op1, z_op_t op2, z_op_t dest) {
-        //VM_DEBUG(("test method %d, %d, %d", op1, op2, dest));
-        return 0;
-    }
-
     // Signature of the generated function.
     typedef int (*z_jit_fnc)();
 
@@ -443,6 +444,7 @@ namespace zero {
         }
 
         auto *instruction = (vm_instruction_t *) bytes;
+        int prev_opcode = 0;
         for (int i = 0; i < count; i++) {
 
             auto label = labels.at(i);
@@ -486,6 +488,18 @@ namespace zero {
                 auto target_label = labels.at(instruction->destination);
                 a.jmp(target_label);
 
+            } else if (opcode == JMP_TRUE && prev_opcode >= CMP_EQ && prev_opcode <= CMP_LTE_DECIMAL) {
+                // cmp - jmp can be inlined
+                auto target_label = labels.at(instruction->destination);
+                a.cmp(x86::rax, 0);
+                a.jne(target_label);
+
+            } else if (opcode == JMP_FALSE && prev_opcode >= CMP_EQ && prev_opcode <= CMP_LTE_DECIMAL) {
+                // cmp - jmp can be inlined
+                auto target_label = labels.at(instruction->destination);
+                a.cmp(x86::rax, 0);
+                a.je(target_label);
+
             } else {
                 // bind parameters
                 if (opcode == MOV_FNC) {
@@ -505,7 +519,6 @@ namespace zero {
 
                 if (is_jmp) {
                     auto target_label = labels.at(instruction->destination);
-                    // 0 means jump is not taken
                     a.cmp(x86::rax, 0);
                     a.jne(target_label);
                 } else if (opcode == CALL) {
@@ -516,7 +529,7 @@ namespace zero {
                     a.ret();
                 }
             }
-
+            prev_opcode = opcode;
             instruction++;
         }
     }
@@ -563,7 +576,6 @@ namespace zero {
     }
 
     void vm_run(Program *program) {
-        test({0}, {0}, {0});
         base_pointer = stack_pointer;
         push(pvalue(nullptr));
         init_native_functions();
