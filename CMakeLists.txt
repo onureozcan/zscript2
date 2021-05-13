@@ -68,4 +68,4 @@ add_executable(zero
 
 target_link_libraries(zero antlr4_static)
 #target_link_libraries(zero ${ASMJIT_LIBS})
-set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
+#set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")

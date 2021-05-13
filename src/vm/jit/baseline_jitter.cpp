@@ -2,9 +2,6 @@
 
 #define ASMJIT_STATIC
 
-#include <asmjit/asmjit.h>
-#include <common/program.h>
-
 using namespace std;
 using namespace asmjit;
 
@@ -15,6 +12,14 @@ namespace zero {
     void compile_add_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
         a.mov(x86::edx, x86::dword_ptr(x86::r12, op1 + 4));
         a.add(x86::edx, x86::dword_ptr(x86::r12, op2 + 4));
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
+    }
+
+    void compile_mod_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op1 + 4));
+        a.cdq();
+        a.idiv(x86::dword_ptr(x86::r12, op2 + 4));
         a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
     }
@@ -37,11 +42,34 @@ namespace zero {
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
     }
 
+    void compile_cmp_eq(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.sete(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
+    }
+
+    void compile_mov(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::rdx, x86::ptr(x86::r12, op1, 8));
+        a.mov(x86::ptr(x86::r12, dest, 8), x86::rdx);
+    }
+
+    void compile_mov_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), op1);
+    }
+
     // some opcodes are just too simple that we can inline them
     static map<int, jit_opcode_compiler *> opcode_compilers_map = {
-            {ADD_INT, compile_add_int},
-            {CMP_LT_INT, compile_cmp_lt_int},
-            {CMP_LTE_INT, compile_cmp_lte_int}
+            {ADD_INT,     compile_add_int},
+            {CMP_LT_INT,  compile_cmp_lt_int},
+            {CMP_LTE_INT, compile_cmp_lte_int},
+            {CMP_EQ,      compile_cmp_eq},
+            {MOV,         compile_mov},
+            {MOV_INT,     compile_mov_int},
+            {MOD_INT,     compile_mod_int}
     };
 
     JitRuntime rt;                    // Runtime specialized for JIT code execution.

@@ -371,8 +371,7 @@ namespace zero {
         auto parent_context_object = context_object;
         if (return_index_in_current) {
             // move return value
-            *(z_value_t *) (((uintptr_t) parent_context_object) + return_index_in_parent) =
-                    current_context_object[return_index_in_current];
+            parent_context_object[return_index_in_parent] = current_context_object[return_index_in_current];
         }
         auto number_of_params_pushed_to_stack = pop().uint_value;
         stack_pointer -= number_of_params_pushed_to_stack;
