@@ -19,10 +19,6 @@ namespace zero {
                     return "FN_ENTER_STACK";
                 case JMP:
                     return "JMP";
-                case JMP_EQ:
-                    return "JMP_EQ";
-                case JMP_NEQ:
-                    return "JMP_NEQ";
                 case JMP_TRUE:
                     return "JMP_TRUE";
                 case JMP_FALSE:
@@ -205,6 +201,36 @@ namespace zero {
 
             return reinterpret_cast<char *>(data.data());
         }
+
+        vector<Instruction *> getInstructions() {
+            vector<Instruction*> ret;
+            map<string *, uint64_t> labelPositions;
+
+            int i = 0;
+            for (auto &ins: instructions) {
+                if (ins->opCode == LABEL) {
+                    labelPositions[ins->operand1AsLabel] = i;
+                } else {
+                    i++;
+                }
+            }
+
+            for (auto &ins: instructions) {
+                if (ins->opCode == LABEL) continue;
+
+                InstructionDescriptor  descriptor = instructionDescriptionTable.find(ins->opCode)->second;
+                if (descriptor.op1Type == IMM_ADDRESS) {
+                    ins->operand1 = labelPositions[ins->operand1AsLabel];
+                }
+
+                if (descriptor.destType == IMM_ADDRESS) {
+                    ins->destination = labelPositions[ins->destinationAsLabel];
+                }
+                ret.push_back(ins);
+            }
+
+            return ret;
+        }
     };
 
     Program::Program(string fileName) {
@@ -233,6 +259,10 @@ namespace zero {
 
     char *Program::toBytes() {
         return impl->toBytes();
+    }
+
+    vector<Instruction *> Program::getInstructions() {
+        return impl->getInstructions();
     }
 
     Instruction *Instruction::withOpCode(unsigned int opCode) {

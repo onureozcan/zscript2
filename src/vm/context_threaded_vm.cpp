@@ -36,8 +36,6 @@ namespace zero {
         double decimal_value;
     } z_op_t;
 
-    bool get_is_immediate(uint64_t opcode);
-
     register z_value_t *context_object asm ("r12");;
     int64_t base_pointer;
     uint64_t call_depth;
@@ -393,12 +391,9 @@ namespace zero {
 
     uint64_t (*func_ptrs[])(z_op_t, z_op_t, z_op_t) =
             {z_handler_FN_ENTER_HEAP, z_handler_FN_ENTER_STACK,
-             z_handler_JMP, z_handler_JMP_EQ,
-             z_handler_JMP_NEQ, z_handler_JMP_TRUE,
-             z_handler_JMP_FALSE,
+             z_handler_JMP, z_handler_JMP_TRUE, z_handler_JMP_FALSE,
              z_handler_MOV, z_handler_MOV_FNC, z_handler_MOV_INT,
-             z_handler_MOV_BOOLEAN,
-             z_handler_MOV_DECIMAL, z_handler_MOV_STRING,
+             z_handler_MOV_BOOLEAN, z_handler_MOV_DECIMAL, z_handler_MOV_STRING,
              z_handler_CALL, z_handler_CALL_NATIVE,
              z_handler_ADD_INT, z_handler_ADD_STRING,
              z_handler_ADD_DECIMAL, z_handler_SUB_INT,
@@ -432,9 +427,10 @@ namespace zero {
         auto op2_reg = x86::rdx;
         auto dest_reg = x86::r8;
 #endif
-        auto *bytes = (uint64_t *) program->toBytes();
-        uint64_t count = bytes[0];
-        bytes++;
+
+        auto instructions = program->getInstructions();
+
+        uint64_t count = instructions.size();
         vector<Label> labels;
         // bind all labels first
         for (int i = 0; i < count; i++) {
@@ -443,47 +439,40 @@ namespace zero {
             labels.push_back(label);
         }
 
-        auto *instruction = (vm_instruction_t *) bytes;
         int prev_opcode = 0;
         for (int i = 0; i < count; i++) {
 
+            auto *instruction = instructions.at(i);
+            auto descriptor = instructionDescriptionTable.find(instruction->opCode)->second;
             auto label = labels.at(i);
 
-            auto opcode = instruction->opcode;
-            auto op1 = instruction->op1;
-            auto op2 = instruction->op2;
+            auto opcode = instruction->opCode;
+            auto op1 = instruction->operand1;
+            auto op2 = instruction->operand2;
             auto destination = instruction->destination;
 
             auto handler_address = (uintptr_t) func_ptrs[opcode - 2];
 
-            auto is_immediate = get_is_immediate(opcode);
-
-            auto is_fn_enter = opcode <= FN_ENTER_STACK;
-            auto is_jmp = !is_fn_enter && opcode <= JMP_FALSE;
-            auto is_using_destination_offset = opcode > JMP_FALSE && opcode < SET_IN_PARENT;
-            auto is_op2_unused = opcode == FN_ENTER_HEAP || opcode == FN_ENTER_STACK ||
-                                 (opcode > JMP_NEQ && opcode < CALL) ||
-                                 (opcode >= CAST_DECIMAL && opcode <= ARG_READ);
-            auto is_dest_unused = opcode < MOV;
-
-            if (is_using_destination_offset) {
+            if (descriptor.destType == INDEX) {
                 // destination offset pre-calculate
                 destination *= sizeof(z_value_t);
             }
-
-            if (!is_immediate) {
-                // value offset pre-calculate
+            // value offset pre-calculate
+            if (descriptor.op1Type == INDEX) {
                 op1 *= sizeof(z_value_t);
+            }
+            if (descriptor.op2Type == INDEX) {
                 op2 *= sizeof(z_value_t);
             }
 
             a.bind(label);
-            if (is_fn_enter) {
+            if (descriptor.opcodeType == FUNCTION_ENTER) {
+                // prepare a stack frame
                 a.push(x86::rbp);
                 a.mov(x86::rbp, x86::rsp);
                 a.sub(x86::rsp, sizeof(uint64_t) * 4);
             }
-            if (instruction->opcode == JMP) {
+            if (instruction->opCode == JMP) {
                 // direct jumps can be compiled, no need to call
                 auto target_label = labels.at(instruction->destination);
                 a.jmp(target_label);
@@ -502,22 +491,22 @@ namespace zero {
 
             } else {
                 // bind parameters
-                if (opcode == MOV_FNC) {
-                    // to call a function, we need to convert it to real address
-                    auto target_label = labels.at(instruction->op1);
+                if (descriptor.op1Type == IMM_ADDRESS) {
+                    // we need to convert it to real address
+                    auto target_label = labels.at(instruction->operand1);
                     a.lea(op1_reg, x86::ptr(target_label));
-                } else {
+                } else if (descriptor.op1Type != UNUSED) {
                     a.mov(op1_reg, op1);
                 }
-                if (!is_op2_unused) {
+                if (descriptor.op2Type != UNUSED) {
                     a.mov(op2_reg, op2);
                 }
-                if (!is_dest_unused) {
+                if (descriptor.destType != UNUSED) {
                     a.mov(dest_reg, destination);
                 }
                 a.call(handler_address);
 
-                if (is_jmp) {
+                if (descriptor.opcodeType == JUMP) {
                     auto target_label = labels.at(instruction->destination);
                     a.cmp(x86::rax, 0);
                     a.jne(target_label);
@@ -532,23 +521,6 @@ namespace zero {
             prev_opcode = opcode;
             instruction++;
         }
-    }
-
-    bool get_is_immediate(uint64_t opcode) {
-        return opcode == MOV_STRING ||
-               opcode == MOV_BOOLEAN ||
-               opcode == MOV_INT ||
-               opcode == MOV_DECIMAL ||
-               opcode == MOV_FNC ||
-               opcode == FN_ENTER_HEAP ||
-               opcode == FN_ENTER_STACK ||
-               opcode == CALL ||
-               opcode == SET_IN_PARENT ||
-               opcode == GET_IN_PARENT ||
-               opcode == SET_IN_OBJECT ||
-               opcode == GET_IN_OBJECT ||
-               opcode == ARG_READ ||
-               opcode == RET;
     }
 
     void run(Program *program) {
