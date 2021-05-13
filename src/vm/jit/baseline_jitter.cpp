@@ -10,9 +10,43 @@ using namespace asmjit;
 
 namespace zero {
 
+    typedef void (jit_opcode_compiler)(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &);
+
+    void compile_add_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::edx, x86::dword_ptr(x86::r12, op1 + 4));
+        a.add(x86::edx, x86::dword_ptr(x86::r12, op2 + 4));
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
+    }
+
+    void compile_cmp_lt_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.setl(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
+    }
+
+    void compile_cmp_lte_int(uint64_t op1, uint64_t op2, uint64_t dest, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.setle(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
+    }
+
+    // some opcodes are just too simple that we can inline them
+    static map<int, jit_opcode_compiler *> opcode_compilers_map = {
+            {ADD_INT, compile_add_int},
+            {CMP_LT_INT, compile_cmp_lt_int},
+            {CMP_LTE_INT, compile_cmp_lte_int}
+    };
+
     JitRuntime rt;                    // Runtime specialized for JIT code execution.
 
-    void compile_dispatch_function(Program *program, x86::Assembler &a, z_opcode_handler** handlers) {
+    void compile_dispatch_function(Program *program, x86::Assembler &a, z_opcode_handler **handlers) {
 #ifdef linux
         auto op1_reg = x86::rdi;
         auto op2_reg = x86::rsi;
@@ -85,41 +119,47 @@ namespace zero {
                 a.je(target_label);
 
             } else {
-                // bind parameters
-                if (descriptor.op1Type == IMM_ADDRESS) {
-                    // we need to convert it to real address
-                    auto target_label = labels.at(instruction->operand1);
-                    a.lea(op1_reg, x86::ptr(target_label));
-                } else if (descriptor.op1Type != UNUSED) {
-                    a.mov(op1_reg, op1);
-                }
-                if (descriptor.op2Type != UNUSED) {
-                    a.mov(op2_reg, op2);
-                }
-                if (descriptor.destType != UNUSED) {
-                    a.mov(dest_reg, destination);
-                }
-                a.call(handler_address);
 
-                if (descriptor.opcodeType == JUMP) {
-                    auto target_label = labels.at(instruction->destination);
-                    a.cmp(x86::rax, 0);
-                    a.jne(target_label);
-                } else if (opcode == CALL) {
-                    a.call(x86::rax);
-                } else if (opcode == RET) {
-                    a.add(x86::rsp, sizeof(uint64_t) * 4);
-                    a.pop(x86::rbp);
-                    a.ret();
+                auto opcode_compile_handler = opcode_compilers_map.find(opcode);
+                // inlineable
+                if (opcode_compile_handler != opcode_compilers_map.end()) {
+                    opcode_compile_handler->second(op1, op2, destination, a);
+                } else {
+                    // standard compilation path
+                    // bind parameters
+                    if (descriptor.op1Type == IMM_ADDRESS) {
+                        // we need to convert it to real address
+                        auto target_label = labels.at(instruction->operand1);
+                        a.lea(op1_reg, x86::ptr(target_label));
+                    } else if (descriptor.op1Type != UNUSED) {
+                        a.mov(op1_reg, op1);
+                    }
+                    if (descriptor.op2Type != UNUSED) {
+                        a.mov(op2_reg, op2);
+                    }
+                    if (descriptor.destType != UNUSED) {
+                        a.mov(dest_reg, destination);
+                    }
+                    a.call(handler_address);
+                    if (descriptor.opcodeType == JUMP) {
+                        auto target_label = labels.at(instruction->destination);
+                        a.cmp(x86::rax, 0);
+                        a.jne(target_label);
+                    } else if (opcode == CALL) {
+                        a.call(x86::rax);
+                    } else if (opcode == RET) {
+                        a.add(x86::rsp, sizeof(uint64_t) * 4);
+                        a.pop(x86::rbp);
+                        a.ret();
+                    }
                 }
             }
             prev_opcode = opcode;
-            instruction++;
         }
     }
 
 
-    z_jit_fnc baseline_jit(Program* program, z_opcode_handler** handlers) {
+    z_jit_fnc baseline_jit(Program *program, z_opcode_handler **handlers) {
 
         CodeHolder code;                  // Holds code and relocation information.
         code.init(rt.environment());      // Initialize code to match the JIT environment.
