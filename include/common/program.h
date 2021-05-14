@@ -135,7 +135,7 @@ namespace zero {
 
         unsigned int opCode = 0;
         union {
-            unsigned int operand1 = 0;
+            uint64_t operand1 = 0;
             string *operand1AsLabel;
             double operand1AsDecimal;
         };

@@ -109,7 +109,8 @@ namespace zero {
     }
 
     uint64_t z_handler_MOV_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
-        double value = *(double *) op1.uint_vaLue;
+        auto bit_representation = op1.uint_vaLue;
+        double value = *reinterpret_cast<double*>(&bit_representation);
         *DESTINATION_PTR = dvalue(value);
         return 0;
     }
