@@ -40,9 +40,9 @@ antlr_target(ZeroParser ZParser.g4 PARSER
 include_directories(${ANTLR_ZeroLexer_OUTPUT_DIR})
 include_directories(${ANTLR_ZeroParser_OUTPUT_DIR})
 
-include_directories("lib/asmjit/src")
-
-message(STATUS "asmjt dir = ${ASMJIT_DIRS}")
+if (JIT_AVAILABLE)
+    include_directories("lib/asmjit/src")
+endif ()
 
 #project headers
 include_directories("include")
@@ -54,11 +54,9 @@ if (JIT_AVAILABLE)
     list(FILTER SRC EXCLUDE REGEX ".*direct_threaded_vm.cpp$")
     file(GLOB_RECURSE ASM_JIT_SRC "lib/asmjit/src/*.cpp")
     list(APPEND SRC ${ASM_JIT_SRC})
-    message(STATUS "jit on, ${SRC}")
 else ()
-    list(FILTER SRC EXCLUDE REGEX ".*context_threaded_vm.cpp$")
+    list(FILTER SRC EXCLUDE REGEX "*vm/jit/*.cpp$")
 endif ()
-
 
 # add generated grammar to demo binary target
 add_executable(zero
@@ -67,5 +65,4 @@ add_executable(zero
         ${ANTLR_ZeroParser_CXX_OUTPUTS})
 
 target_link_libraries(zero antlr4_static)
-#target_link_libraries(zero ${ASMJIT_LIBS})
-#set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
+set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
