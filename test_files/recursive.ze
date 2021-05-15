@@ -1,0 +1,8 @@
+var fib:fun<int,int>
+
+fib = fun (num: int) : int {
+    if (num < 2) {
+        return 1
+    }
+    return fib(num - 1) + fib(num - 2)
+}

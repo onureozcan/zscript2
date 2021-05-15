@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include <vector>
 
 using namespace std;
 
@@ -12,8 +14,6 @@ namespace zero {
         FN_ENTER_HEAP,
         FN_ENTER_STACK,
         JMP,
-        JMP_EQ,
-        JMP_NEQ,
         JMP_TRUE,
         JMP_FALSE,
         MOV,
@@ -58,6 +58,77 @@ namespace zero {
         RET
     };
 
+    enum OpType {
+        IMM_INT,
+        IMM_DECIMAL,
+        IMM_STRING,
+        IMM_ADDRESS,
+        INDEX,
+        UNUSED
+    };
+
+    enum OpcodeType {
+        FUNCTION_ENTER,
+        JUMP,
+        COMPARISON,
+        OTHER
+    };
+
+    typedef struct {
+        OpcodeType opcodeType;
+        OpType op1Type;
+        OpType op2Type;
+        OpType destType;
+    } InstructionDescriptor;
+
+    static const map<int, InstructionDescriptor> instructionDescriptionTable = {
+            {RET,             {OTHER,          UNUSED,      UNUSED,  IMM_INT}},
+            {SET_IN_OBJECT,   {OTHER,          IMM_INT,     IMM_INT, INDEX}},
+            {SET_IN_PARENT,   {OTHER,          IMM_INT,     INDEX,   INDEX}},
+            {GET_IN_OBJECT,   {OTHER,          INDEX,       INDEX,   INDEX}},
+            {GET_IN_PARENT,   {OTHER,          IMM_INT,     IMM_INT, INDEX}},
+            {ARG_READ,        {OTHER,          IMM_INT,     UNUSED,  INDEX}},
+            {PUSH,            {OTHER,          INDEX,       UNUSED,  UNUSED}},
+            {POP,             {OTHER,          INDEX,       UNUSED,  UNUSED}},
+            {NEG_DECIMAL,     {OTHER,          INDEX,       UNUSED,  INDEX}},
+            {NEG_INT,         {OTHER,          INDEX,       UNUSED,  INDEX}},
+            {CMP_EQ,          {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_NEQ,         {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_GT_INT,      {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_GT_DECIMAL,  {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_LT_INT,      {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_LT_DECIMAL,  {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_GTE_INT,     {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_GTE_DECIMAL, {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_LTE_INT,     {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CMP_LTE_DECIMAL, {COMPARISON,     INDEX,       INDEX,   INDEX}},
+            {CAST_DECIMAL,    {OTHER,          INDEX,       UNUSED,  INDEX}},
+            {MOD_DECIMAL,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {MOD_INT,         {OTHER,          INDEX,       INDEX,   INDEX}},
+            {MUL_DECIMAL,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {MUL_INT,         {OTHER,          INDEX,       INDEX,   INDEX}},
+            {DIV_DECIMAL,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {DIV_INT,         {OTHER,          INDEX,       INDEX,   INDEX}},
+            {SUB_DECIMAL,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {SUB_INT,         {OTHER,          INDEX,       INDEX,   INDEX}},
+            {ADD_DECIMAL,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {ADD_STRING,      {OTHER,          INDEX,       INDEX,   INDEX}},
+            {ADD_INT,         {OTHER,          INDEX,       INDEX,   INDEX}},
+            {CALL_NATIVE,     {OTHER,          INDEX,       INDEX,   INDEX}},
+            {CALL,            {OTHER,          IMM_INT,     IMM_INT, IMM_INT}},
+            {MOV,             {OTHER,          INDEX,       UNUSED,  INDEX}},
+            {MOV_FNC,         {OTHER,          IMM_ADDRESS, UNUSED,  INDEX}},
+            {MOV_INT,         {OTHER,          IMM_INT,     UNUSED,  INDEX}},
+            {MOV_BOOLEAN,     {OTHER,          IMM_INT,     UNUSED,  INDEX}},
+            {MOV_DECIMAL,     {OTHER,          IMM_DECIMAL, UNUSED,  INDEX}},
+            {MOV_STRING,      {OTHER,          IMM_STRING,  UNUSED,  INDEX}},
+            {JMP_TRUE,        {JUMP,           INDEX,       UNUSED,  IMM_ADDRESS}},
+            {JMP_FALSE,       {JUMP,           INDEX,       UNUSED,  IMM_ADDRESS}},
+            {JMP,             {JUMP,           UNUSED,      UNUSED,  IMM_ADDRESS}},
+            {FN_ENTER_STACK,  {FUNCTION_ENTER, IMM_INT,     UNUSED,  UNUSED}},
+            {FN_ENTER_HEAP,   {FUNCTION_ENTER, IMM_INT,     UNUSED,  UNUSED}}
+    };
+
     class Instruction {
     public:
 
@@ -65,7 +136,7 @@ namespace zero {
 
         unsigned int opCode = 0;
         union {
-            unsigned int operand1 = 0;
+            uint64_t operand1 = 0;
             string *operand1AsLabel;
             double operand1AsDecimal;
         };
@@ -92,7 +163,7 @@ namespace zero {
 
         Instruction *withDestination(unsigned int dest);
 
-        Instruction *withDestination(string* dest);
+        Instruction *withDestination(string *dest);
 
         Instruction *withComment(string comment);
 
@@ -120,6 +191,8 @@ namespace zero {
         string toString();
 
         char *toBytes();
+
+        vector<Instruction *> getInstructions();
 
     private:
         Impl *impl;

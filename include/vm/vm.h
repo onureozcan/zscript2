@@ -3,7 +3,7 @@
 #include <common/program.h>
 #include <common/logger.h>
 
-#define STACK_MAX 100000
+#define STACK_MAX 10000
 
 #define PRIMITIVE_TYPE_INT 1
 #define PRIMITIVE_TYPE_DOUBLE 2
@@ -29,15 +29,28 @@ namespace zero {
         };
     } z_value_t;
 
-    void push(z_value_t value);
+    typedef struct {
+        union {
+            void *branch_addr;
+            uint64_t opcode;
+        };
+        union {
+            uint64_t op1;
+            string *op1_string;
+        };
+        uint64_t op2;
+        uint64_t destination;
+    } vm_instruction_t;
 
-    z_value_t pop();
+    extern Logger vm_log;
+
+    // for parameter passing, return address etc
+    extern int64_t stack_pointer;
+    extern z_value_t value_stack[STACK_MAX];
 
     // a native function manages stack manually. no calling convention yet
     typedef z_value_t (*z_native_fnc_t)();
 
     void vm_run(Program *program);
-
-    z_value_t native_print();
 
 }

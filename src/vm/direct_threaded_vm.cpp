@@ -1,10 +1,10 @@
 #include <vm/vm.h>
 #include <vm/object_manager.h>
+#include <vm/shared.h>
 
 #include <common/util.h>
 
 #include <cmath>
-#include <iostream>
 
 #define GOTO_NEXT goto *(++instruction_ptr)->branch_addr
 #define GOTO_CURRENT goto *(instruction_ptr)->branch_addr
@@ -21,134 +21,11 @@
 #define OP1_PTR ((z_value_t*)((uintptr_t)context_object + instruction_ptr->op1))
 #define OP2_PTR ((z_value_t*)((uintptr_t)context_object + instruction_ptr->op2))
 
+#include "vm_shared_inline.cpp"
+
 using namespace std;
 
 namespace zero {
-
-    typedef struct {
-        union {
-            void *branch_addr;
-            uint64_t opcode;
-        };
-        union {
-            uint64_t op1;
-            string *op1_string;
-        };
-        uint64_t op2;
-        uint64_t destination;
-    } vm_instruction_t;
-
-    Logger vm_log("vm");
-    vector<z_native_fnc_t> native_function_map = {native_print};
-
-    // for parameter passing, return address etc
-    int64_t stack_pointer = 0;
-    z_value_t value_stack[STACK_MAX];
-
-    inline z_value_t *alloc(unsigned int size) {
-        auto *ptr = static_cast<z_value_t *>(malloc_aligned(size * sizeof(z_value_t)));
-        if (ptr == nullptr) {
-            vm_log.error("could not allocate %d size frame!", size);
-            exit(1);
-        }
-        return ptr;
-    }
-
-    inline z_value_t uvalue(uint64_t _val) {
-        z_value_t val;
-        val.uint_value = _val;
-        return val;
-    }
-
-    inline z_value_t ivalue(int32_t _val) {
-        z_value_t val;
-        val.arithmetic_int_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_INT;
-        return val;
-    }
-
-    inline z_value_t bvalue(int32_t _val) {
-        z_value_t val;
-        val.arithmetic_int_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_BOOLEAN;
-        return val;
-    }
-
-    inline z_value_t dvalue(float _val) {
-        z_value_t val;
-        val.arithmetic_decimal_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_DOUBLE;
-        return val;
-    }
-
-    inline z_value_t pvalue(void *_val) {
-        z_value_t val;
-        val.ptr_value = _val;
-        return val;
-    }
-
-    inline z_value_t svalue(string *_val) {
-        z_value_t val;
-        val.string_value = _val;
-        object_manager_register_string(val);
-        return val;
-    }
-
-    inline z_value_t fvalue(unsigned int instruction_index, z_value_t *context_object) {
-        z_value_t val;
-        val.ptr_value = object_manager_create_fn_ref(instruction_index, context_object);
-        return val;
-    }
-
-    z_value_t native_print() {
-        z_value_t z_value = pop();
-        z_object_type_info type = object_manager_guess_type(z_value);
-        string str_value;
-        switch (type) {
-            case VM_VALUE_TYPE_STRING:
-                str_value = *z_value.string_value;
-                break;
-            case VM_VALUE_TYPE_DECIMAL:
-                str_value = to_string(z_value.arithmetic_decimal_value);
-                break;
-            case VM_VALUE_TYPE_BOOLEAN:
-                str_value = z_value.arithmetic_int_value ? "true" : "false";
-                break;
-            case VM_VALUE_TYPE_INT:
-                str_value = to_string(z_value.arithmetic_int_value);
-                break;
-            case VM_VALUE_TYPE_FUNCTION_REF:
-                str_value = "[function ref]";
-                break;
-            case VM_VALUE_TYPE_TYPE_OBJECT:
-                str_value = "[object ref]";
-                break;
-            default:
-                str_value = "[?]";
-                break;
-        }
-        cout << str_value << "\n";
-        return ivalue(0);
-    }
-
-    inline void push(z_value_t value) {
-        if (stack_pointer > STACK_MAX) {
-            vm_log.error("stack overflow!", stack_pointer);
-            exit(1);
-        }
-        value_stack[stack_pointer] = value;
-        stack_pointer++;
-    }
-
-    inline z_value_t pop() {
-        stack_pointer--;
-        if (stack_pointer < 0) {
-            vm_log.error("stack underflow!", stack_pointer);
-            exit(1);
-        }
-        auto ret = value_stack[stack_pointer];
-        return ret;
-    }
 
     vm_instruction_t *prepare_vm_instructions(Program *program, void **labels) {
         auto *bytes = (uint64_t *) program->toBytes();
@@ -197,16 +74,6 @@ namespace zero {
             instruction++;
         }
         return (vm_instruction_t *) bytes;
-    }
-
-    inline void init_call_context(z_value_t *context_object, z_value_t *parent_context) {
-        context_object[0] = pvalue(parent_context); // 0th index is a pointer to parent
-        if (parent_context == nullptr) {
-            // init native functions
-            for (unsigned int i = 0; i < native_function_map.size(); i++) {
-                context_object[i + 1] = uvalue(i);
-            }
-        }
     }
 
     void vm_run(Program *program) {

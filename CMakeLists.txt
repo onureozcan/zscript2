@@ -3,6 +3,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.7 FATAL_ERROR)
 
 project("Zero")
 
+option(JIT_AVAILABLE "JIT available for the target arch" ON)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # compiler must be 11 or 14
@@ -16,6 +18,7 @@ add_definitions(-DANTLR4CPP_STATIC)
 
 # add external build for antlrcpp
 include(ExternalAntlr4Cpp)
+
 # add antrl4cpp artifacts to project environment
 include_directories(${ANTLR4_INCLUDE_DIRS})
 
@@ -37,11 +40,23 @@ antlr_target(ZeroParser ZParser.g4 PARSER
 include_directories(${ANTLR_ZeroLexer_OUTPUT_DIR})
 include_directories(${ANTLR_ZeroParser_OUTPUT_DIR})
 
+if (JIT_AVAILABLE)
+    include_directories("lib/asmjit/src")
+endif ()
+
 #project headers
 include_directories("include")
 
 #source files
 file(GLOB_RECURSE SRC "src/*.cpp")
+
+if (JIT_AVAILABLE)
+    list(FILTER SRC EXCLUDE REGEX ".*direct_threaded_vm.cpp$")
+    file(GLOB_RECURSE ASM_JIT_SRC "lib/asmjit/src/*.cpp")
+    list(APPEND SRC ${ASM_JIT_SRC})
+else ()
+    list(FILTER SRC EXCLUDE REGEX ".*vm/jit/*.cpp$")
+endif ()
 
 # add generated grammar to demo binary target
 add_executable(zero

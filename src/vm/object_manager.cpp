@@ -28,14 +28,12 @@ namespace zero {
     }
 
     z_object_type_info object_manager_guess_type(z_value_t value) {
-        uint64_t type = (value.uint_value % sizeof(uint64_t));
+        uint64_t type = value.uint_value & 7;
         if (type == 0) { // because pointers are 8 byte aligned, it means this is a pointer and not a primitive
             if (type_knowledge_map.find(value.uint_value) != type_knowledge_map.end()) {
                 return type_knowledge_map[value.uint_value];
             } else return -1;
         }
-        return type == PRIMITIVE_TYPE_DOUBLE ?
-               VM_VALUE_TYPE_DECIMAL : type == VM_VALUE_TYPE_BOOLEAN ?
-                                       VM_VALUE_TYPE_BOOLEAN : VM_VALUE_TYPE_INT;
+        return type;
     }
 }

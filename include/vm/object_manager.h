@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vm/vm.h>
 
 using namespace std;
@@ -24,12 +26,12 @@ namespace zero {
 
     typedef int z_object_type_info;
 
-    static const int VM_VALUE_TYPE_INT = 0;
-    static const int VM_VALUE_TYPE_DECIMAL = 1;
-    static const int VM_VALUE_TYPE_STRING = 2;
-    static const int VM_VALUE_TYPE_BOOLEAN = 3;
-    static const int VM_VALUE_TYPE_FUNCTION_REF = 4;
-    static const int VM_VALUE_TYPE_TYPE_OBJECT = 5;
+    static const int VM_VALUE_TYPE_INT = PRIMITIVE_TYPE_INT;
+    static const int VM_VALUE_TYPE_DECIMAL = PRIMITIVE_TYPE_DOUBLE;
+    static const int VM_VALUE_TYPE_BOOLEAN = PRIMITIVE_TYPE_BOOLEAN;
+    static const int VM_VALUE_TYPE_STRING = 4;
+    static const int VM_VALUE_TYPE_FUNCTION_REF = 5;
+    static const int VM_VALUE_TYPE_TYPE_OBJECT = 6;
 
     z_fnc_ref_t* object_manager_create_fn_ref(unsigned int instruction_index, z_value_t *context_object);
 
