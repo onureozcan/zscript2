@@ -17,12 +17,37 @@ namespace zero {
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
     }
 
+    void compile_sub_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
+        a.mov(x86::edx, x86::dword_ptr(x86::r12, op1 + 4));
+        a.sub(x86::edx, x86::dword_ptr(x86::r12, op2 + 4));
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
+    }
+
     void compile_mod_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
         a.mov(x86::eax, x86::dword_ptr(x86::r12, op1 + 4));
         a.cdq();
         a.idiv(x86::dword_ptr(x86::r12, op2 + 4));
         a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
+    }
+
+    void compile_cmp_gte_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.setge(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
+    }
+
+    void compile_cmp_gt_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.setg(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
     }
 
     void compile_cmp_lt_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
@@ -52,6 +77,15 @@ namespace zero {
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
     }
 
+    void compile_cmp_neq(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
+        a.mov(x86::eax, x86::dword_ptr(x86::r12, op2 + 4));
+        a.cmp(x86::dword_ptr(x86::r12, op1 + 4), x86::eax);
+        a.setne(x86::al);
+        a.movsx(x86::eax, x86::al);
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::eax);
+    }
+
     void compile_mov(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
         a.mov(x86::rdx, x86::ptr(x86::r12, op1, 8));
         a.mov(x86::ptr(x86::r12, dest, 8), x86::rdx);
@@ -62,34 +96,40 @@ namespace zero {
         a.mov(x86::dword_ptr(x86::r12, dest + 4), op1);
     }
 
+    void compile_mov_boolean(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
+        a.mov(x86::dword_ptr(x86::r12, dest), 0x3);
+        a.mov(x86::dword_ptr(x86::r12, dest + 4), op1);
+    }
+
     void compile_jmp(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
         auto target_label = labels->at(dest);
         a.jmp(target_label);
     }
 
     void compile_mov_decimal(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
-        auto bit_representation_64 = op1;
-        double dvalue = *reinterpret_cast<double*>(&bit_representation_64);
-        auto fvalue = (float) dvalue;
-        auto bit_representation_32 = *reinterpret_cast<uint32_t *>(&fvalue);
-
-        a.mov(x86::eax, bit_representation_32);
-        a.movq(x86::xmm(0), x86::eax);
+        a.mov(x86::rax, op1);
+        a.movq(x86::xmm(0), x86::rax);
+        a.cvtsd2ss(x86::xmm(0), x86::xmm(0));
         a.mov(x86::dword_ptr(x86::r12, dest), 0x2);
         a.movss(x86::dword_ptr(x86::r12, dest + 4), x86::xmm(0));
     }
 
     // some opcodes are just too simple that we can inline them
     static map<int, jit_opcode_compiler *> opcode_compilers_map = {
-            {ADD_INT,     compile_add_int},
-            {CMP_LT_INT,  compile_cmp_lt_int},
+            {ADD_INT, compile_add_int},
+            {SUB_INT, compile_sub_int},
+            {MOD_INT, compile_mod_int},
+            {CMP_LT_INT, compile_cmp_lt_int},
             {CMP_LTE_INT, compile_cmp_lte_int},
-            {CMP_EQ,      compile_cmp_eq},
-            {MOV,         compile_mov},
-            {MOV_INT,     compile_mov_int},
-            {MOD_INT,     compile_mod_int},
-            {JMP,         compile_jmp},
-            {MOV_DECIMAL, compile_mov_decimal}
+            {CMP_GT_INT, compile_cmp_gt_int},
+            {CMP_GTE_INT, compile_cmp_gte_int},
+            {CMP_EQ, compile_cmp_eq},
+            {CMP_NEQ, compile_cmp_neq},
+            {MOV, compile_mov},
+            {MOV_INT, compile_mov_int},
+            {JMP, compile_jmp},
+            {MOV_DECIMAL, compile_mov_decimal},
+            {MOV_BOOLEAN, compile_mov_boolean}
     };
 
     JitRuntime rt;                    // Runtime specialized for JIT code execution.
@@ -116,7 +156,7 @@ namespace zero {
             labels.push_back(label);
         }
 
-        int prev_opcode = 0;
+        InstructionDescriptor prev_descriptor;
         for (int i = 0; i < count; i++) {
 
             auto *instruction = instructions.at(i);
@@ -150,9 +190,8 @@ namespace zero {
                 a.sub(x86::rsp, sizeof(uint64_t) * 4);
             }
 
-            if ((opcode == JMP_TRUE || opcode == JMP_FALSE) &&
-                (prev_opcode >= CMP_EQ &&
-                 prev_opcode <= CMP_LTE_DECIMAL)) {
+            if ((opcode == JMP_TRUE || opcode == JMP_FALSE)
+                && prev_descriptor.opcodeType == COMPARISON) {
                 // cmp - jmp can be inlined
                 auto target_label = labels.at(instruction->destination);
                 a.cmp(x86::rax, 0);
@@ -168,7 +207,7 @@ namespace zero {
                 if (opcode_compile_handler != opcode_compilers_map.end()) {
                     opcode_compile_handler->second(op1, op2, destination, &labels, a);
                 } else {
-                    // standard compilation path
+                    // standard compilation path: this calls the handler function according to the calling conventions
                     // bind parameters
                     if (descriptor.op1Type == IMM_ADDRESS) {
                         // we need to convert it to real address
@@ -197,7 +236,7 @@ namespace zero {
                     }
                 }
             }
-            prev_opcode = opcode;
+            prev_descriptor = descriptor;
         }
     }
 

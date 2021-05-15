@@ -36,8 +36,8 @@ namespace zero {
         z_object_type_info type = object_manager_guess_type(z_value);
         string str_value;
         switch (type) {
-            case VM_VALUE_TYPE_STRING:
-                str_value = *z_value.string_value;
+            case VM_VALUE_TYPE_INT:
+                str_value = to_string(z_value.arithmetic_int_value);
                 break;
             case VM_VALUE_TYPE_DECIMAL:
                 str_value = to_string(z_value.arithmetic_decimal_value);
@@ -45,8 +45,8 @@ namespace zero {
             case VM_VALUE_TYPE_BOOLEAN:
                 str_value = z_value.arithmetic_int_value ? "true" : "false";
                 break;
-            case VM_VALUE_TYPE_INT:
-                str_value = to_string(z_value.arithmetic_int_value);
+            case VM_VALUE_TYPE_STRING:
+                str_value = *z_value.string_value;
                 break;
             case VM_VALUE_TYPE_FUNCTION_REF:
                 str_value = "[function ref]";
