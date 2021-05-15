@@ -53,4 +53,6 @@ namespace zero {
 
     void vm_run(Program *program);
 
+    void vm_interpret(Program *program);
+
 }

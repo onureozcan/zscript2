@@ -76,7 +76,7 @@ namespace zero {
         return (vm_instruction_t *) bytes;
     }
 
-    void vm_run(Program *program) {
+    void vm_interpret(Program *program) {
         static void *labels[] = {
                 &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_TRUE, &&JMP_FALSE,
                 &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,

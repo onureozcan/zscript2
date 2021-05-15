@@ -5,6 +5,10 @@ project("Zero")
 
 option(JIT_AVAILABLE "JIT available for the target arch" ON)
 
+if (JIT_AVAILABLE)
+    add_definitions(-DJIT_AVAILABLE)
+endif ()
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # compiler must be 11 or 14
@@ -51,7 +55,6 @@ include_directories("include")
 file(GLOB_RECURSE SRC "src/*.cpp")
 
 if (JIT_AVAILABLE)
-    list(FILTER SRC EXCLUDE REGEX ".*direct_threaded_vm.cpp$")
     file(GLOB_RECURSE ASM_JIT_SRC "lib/asmjit/src/*.cpp")
     list(APPEND SRC ${ASM_JIT_SRC})
 else ()
