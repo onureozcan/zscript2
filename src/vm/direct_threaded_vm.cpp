@@ -78,7 +78,7 @@ namespace zero {
 
     void vm_run(Program *program) {
         static void *labels[] = {
-                &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_EQ, &&JMP_NEQ, &&JMP_TRUE, &&JMP_FALSE,
+                &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_TRUE, &&JMP_FALSE,
                 &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,
                 &&MOV_DECIMAL, &&MOV_STRING, &&CALL, &&CALL_NATIVE, &&ADD_INT, &&ADD_STRING,
                 &&ADD_DECIMAL, &&SUB_INT, &&SUB_DECIMAL, &&DIV_INT, &&DIV_DECIMAL,
@@ -98,6 +98,7 @@ namespace zero {
         uint64_t call_depth = 0;
 
         push(pvalue(nullptr)); // first parent context is null
+        init_native_functions();
 
         GOTO_CURRENT;
 
@@ -144,26 +145,6 @@ namespace zero {
         {
             instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
             GOTO_CURRENT;
-        }
-        JMP_EQ:
-        {
-            auto v1 = OP1_PTR;
-            auto v2 = OP2_PTR;
-            if (v1->arithmetic_int_value == v2->arithmetic_int_value) {
-                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
-        }
-        JMP_NEQ:
-        {
-            auto v1 = OP1_PTR;
-            auto v2 = OP2_PTR;
-            if (v1->arithmetic_int_value != v2->arithmetic_int_value) {
-                instruction_ptr = (vm_instruction_t *) (instruction_ptr->destination);
-                GOTO_CURRENT;
-            }
-            GOTO_NEXT;
         }
         JMP_TRUE:
         {
@@ -236,7 +217,7 @@ namespace zero {
         }
         CALL_NATIVE:
         {
-            auto native_handler = native_function_map[OP1_PTR->uint_value];
+            auto native_handler = get_native_fnc_at(OP1_PTR->uint_value);
             *DESTINATION_PTR = native_handler();
             GOTO_NEXT;
         }

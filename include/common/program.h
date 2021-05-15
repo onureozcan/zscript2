@@ -134,18 +134,18 @@ namespace zero {
 
         class Impl;
 
-        unsigned int opCode = 0;
+        uint64_t opCode = 0;
         union {
             uint64_t operand1 = 0;
             string *operand1AsLabel;
             double operand1AsDecimal;
         };
         union {
-            unsigned int operand2 = 0;
+            uint64_t operand2 = 0;
         };
         union {
             string *destinationAsLabel;
-            unsigned int destination = 0;
+            uint64_t destination = 0;
         };
         string comment;
 

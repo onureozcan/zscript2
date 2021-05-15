@@ -2,6 +2,8 @@
 
 #define ASMJIT_STATIC
 
+#include <asmjit/asmjit.h>
+
 using namespace std;
 using namespace asmjit;
 

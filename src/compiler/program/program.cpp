@@ -177,8 +177,8 @@ namespace zero {
                     auto labelIndex = labelPositions[ins->operand1AsLabel];
                     data.push_back(labelIndex);
                 } else if (ins->opCode == MOV_STRING) {
-                    auto cpy = new string(*ins->operand1AsLabel);
-                    data.push_back((uint64_t) cpy);
+                    //auto cpy = new string(*ins->operand1AsLabel);
+                    data.push_back((uint64_t) ins->operand1AsLabel);
                 } else if (ins->opCode == MOV_DECIMAL) {
                     double double_value = ins->operand1AsDecimal;
                     char buf[sizeof(double)];

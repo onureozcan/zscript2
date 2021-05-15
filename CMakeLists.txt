@@ -55,7 +55,7 @@ if (JIT_AVAILABLE)
     file(GLOB_RECURSE ASM_JIT_SRC "lib/asmjit/src/*.cpp")
     list(APPEND SRC ${ASM_JIT_SRC})
 else ()
-    list(FILTER SRC EXCLUDE REGEX ".*vm/jit/*.cpp$")
+    list(FILTER SRC EXCLUDE REGEX ".*jit.*.cpp$")
 endif ()
 
 # add generated grammar to demo binary target

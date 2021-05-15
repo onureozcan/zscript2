@@ -1,9 +1,6 @@
 #pragma once
 
-#define ASMJIT_STATIC
-
 #include <cstdint>
-#include <asmjit/asmjit.h>
 
 #include <vm/vm.h>
 
