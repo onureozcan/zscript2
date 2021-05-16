@@ -25,22 +25,19 @@ namespace zero {
 
     inline z_value_t ivalue(int32_t _val) {
         z_value_t val;
-        val.arithmetic_int_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_INT;
+        val.uint_value = PRIMITIVE_TYPE_INT | (((uint64_t) _val) << 32);
         return val;
     }
 
     inline z_value_t bvalue(int32_t _val) {
         z_value_t val;
-        val.arithmetic_int_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_BOOLEAN;
+        val.uint_value = PRIMITIVE_TYPE_BOOLEAN | (((uint64_t) _val) << 32);
         return val;
     }
 
     inline z_value_t dvalue(float _val) {
         z_value_t val;
-        val.arithmetic_decimal_value = _val;
-        val.primitive_type = PRIMITIVE_TYPE_DOUBLE;
+        val.uint_value = PRIMITIVE_TYPE_DOUBLE | (((uint64_t) _val) << 32);
         return val;
     }
 

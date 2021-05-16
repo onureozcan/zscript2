@@ -15,14 +15,20 @@ namespace zero {
     void compile_add_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
         a.mov(x86::edx, x86::dword_ptr(x86::r12, op1 + 4));
         a.add(x86::edx, x86::dword_ptr(x86::r12, op2 + 4));
-        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        if (dest != op1 && dest != op2) {
+            // if the destination is one of the operands, it is already "tagged as int". no need to tag again
+            a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        }
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
     }
 
     void compile_sub_int(uint64_t op1, uint64_t op2, uint64_t dest, vector<Label> *labels, x86::Assembler &a) {
         a.mov(x86::edx, x86::dword_ptr(x86::r12, op1 + 4));
         a.sub(x86::edx, x86::dword_ptr(x86::r12, op2 + 4));
-        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        if (dest != op1 && dest != op2) {
+            // if the destination is one of the operands, it is already "tagged as int". no need to tag again
+            a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        }
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
     }
 
@@ -30,7 +36,10 @@ namespace zero {
         a.mov(x86::eax, x86::dword_ptr(x86::r12, op1 + 4));
         a.cdq();
         a.idiv(x86::dword_ptr(x86::r12, op2 + 4));
-        a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        if (dest != op1 && dest != op2) {
+            // if the destination is one of the operands, it is already "tagged as int". no need to tag again
+            a.mov(x86::dword_ptr(x86::r12, dest), 0x1);
+        }
         a.mov(x86::dword_ptr(x86::r12, dest + 4), x86::edx);
     }
 
@@ -118,18 +127,18 @@ namespace zero {
 
     // some opcodes are just too simple that we can inline them
     static map<int, jit_opcode_compiler *> opcode_compilers_map = {
-            {ADD_INT, compile_add_int},
-            {SUB_INT, compile_sub_int},
-            {MOD_INT, compile_mod_int},
-            {CMP_LT_INT, compile_cmp_lt_int},
+            {ADD_INT,     compile_add_int},
+            {SUB_INT,     compile_sub_int},
+            {MOD_INT,     compile_mod_int},
+            {CMP_LT_INT,  compile_cmp_lt_int},
             {CMP_LTE_INT, compile_cmp_lte_int},
-            {CMP_GT_INT, compile_cmp_gt_int},
+            {CMP_GT_INT,  compile_cmp_gt_int},
             {CMP_GTE_INT, compile_cmp_gte_int},
-            {CMP_EQ, compile_cmp_eq},
-            {CMP_NEQ, compile_cmp_neq},
-            {MOV, compile_mov},
-            {MOV_INT, compile_mov_int},
-            {JMP, compile_jmp},
+            {CMP_EQ,      compile_cmp_eq},
+            {CMP_NEQ,     compile_cmp_neq},
+            {MOV,         compile_mov},
+            {MOV_INT,     compile_mov_int},
+            {JMP,         compile_jmp},
             {MOV_DECIMAL, compile_mov_decimal},
             {MOV_BOOLEAN, compile_mov_boolean}
     };

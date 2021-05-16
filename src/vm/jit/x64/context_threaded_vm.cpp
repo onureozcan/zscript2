@@ -26,7 +26,7 @@ using namespace std;
 
 namespace zero {
 
-    register z_value_t *context_object asm ("r12");;
+    register z_value_t *context_object asm ("r12");
     int64_t base_pointer;
     uint64_t call_depth;
 
@@ -62,8 +62,7 @@ namespace zero {
     }
 
     uint64_t z_handler_JMP(z_op_t op1, z_op_t op2, z_op_t dest) {
-        // INLINED
-        return 0;
+        return 1; // always take the jump
     }
 
     uint64_t z_handler_JMP_EQ(z_op_t op1, z_op_t op2, z_op_t dest) {
