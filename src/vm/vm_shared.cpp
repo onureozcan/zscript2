@@ -58,7 +58,7 @@ namespace zero {
                 str_value = "[?]";
                 break;
         }
-        cout << str_value << "\n";
+        cout << str_value << endl;
         return ivalue(0);
     }
 }

@@ -17,10 +17,10 @@ namespace zero {
                 tm *localTime = localtime(&now);
                 string timeStr = string(asctime(localTime));
                 timeStr.pop_back();
-                printf("%s, %s, [%s]: ", timeStr.c_str(), name.c_str(), LOG_LEVEL_MAP[priority].c_str());
-                vprintf(format, args);
+                fprintf(stderr, "%s, %s, [%s]: ", timeStr.c_str(), name.c_str(), LOG_LEVEL_MAP[priority].c_str());
+                vfprintf(stderr, format, args);
                 va_end(args);
-                printf("\n");
+                fprintf(stderr, "\n");
             }
         }
     };

@@ -1,0 +1,36 @@
+----------basic if-else test----------
+if else worked
+if true worked
+if false worked
+-------if and logic combination-------
+or inside if worked
+and inside if worked
+or - and mix inside if worked
+-----------counting to 10-------------
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+------------odd-even test--------------
+5
+odd
+6
+even
+7
+odd
+8
+even
+9
+odd
+10
+even
+11
+odd
+12
+even

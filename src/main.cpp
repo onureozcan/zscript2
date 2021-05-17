@@ -42,6 +42,6 @@ int main(int argc, const char *argv[]) {
     clock_t end = clock();
 
     double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
-    cout << string(filename) << " took " << elapsedSecs << "sec(s)\n";
+    main_logger.debug("%s took %lf sec(s) to run", filename, elapsedSecs);
     return 0;
 }

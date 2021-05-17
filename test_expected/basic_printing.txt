@@ -1,0 +1,11 @@
+hello world!
+test string, i should appear at the screen!
+lets see some numbers
+5.560000
+5
+-8
+-8.750000
+13
+23.219999
+false
+true

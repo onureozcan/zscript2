@@ -1,0 +1,17 @@
+i am the main fnc
+now i am calling a function defined outside of me!
+hello from the outer fnc
+i am the inner fnc that is placed inside the outer fnc
+here is the tricky part:
+        I am not directly called by `some_outer_fnc` but through `main`.
+        so, if you see this, it shows that I knew where I need to search for parent variables. yeey :) 
+now let's call a function that returns a value
+i can return values, how cool is not it? :D
+now let me call a function and pass arguments to it
+arg1arg2
+now i will call a function, generating a function based on the parameter i have passed
+look ma, i can return functions too: some arg 1
+look ma, i can return functions too: some arg 2
+look ma, i can return functions too: some arg 3
+hey, nice function, i will call it now!
+hello from the function that was passed to another function as a callback! and here is a variable from my parent context:something

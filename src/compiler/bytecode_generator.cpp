@@ -442,7 +442,7 @@ namespace zero {
                         (new Instruction())->withOpCode(MOV)
                                 ->withOp1(actualValueIndex1)
                                 ->withDestination(preferredIndex)
-                                ->withComment("short circuit and v1 branch, dest is " + to_string(preferredIndex))
+                                ->withComment("short circuit or v1 branch, dest is " + to_string(preferredIndex))
                 );
             }
             currentProgram()->addInstruction(
@@ -455,9 +455,9 @@ namespace zero {
             if (actualValueIndex2 != preferredIndex) {
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(MOV)
-                                ->withOp1(actualValueIndex1)
+                                ->withOp1(actualValueIndex2)
                                 ->withDestination(preferredIndex)
-                                ->withComment("short circuit and v2 branch, dest is " + to_string(preferredIndex))
+                                ->withComment("short circuit or v2 branch, dest is " + to_string(preferredIndex))
                 );
             }
             currentProgram()->addLabel(endLabel);
@@ -477,10 +477,12 @@ namespace zero {
             } else if (op == &Operator::OR) {
                 return visitOr(binary, preferredIndex);
             } else {
-                unsigned int valueIndex1 = currentTempVariableAllocator()->alloc();
-                unsigned int valueIndex2 = currentTempVariableAllocator()->alloc();
-                unsigned int actualValueIndex1 = visitExpression(binary->left, valueIndex1);
-                unsigned int actualValueIndex2 = visitExpression(binary->right, valueIndex2);
+                unsigned int tempValueIndex1 = currentTempVariableAllocator()->alloc();
+                unsigned int tempValueIndex2 = currentTempVariableAllocator()->alloc();
+                unsigned int decimalTempIndex = currentTempVariableAllocator()->alloc();
+
+                unsigned int actualValueIndex1 = visitExpression(binary->left, tempValueIndex1);
+                unsigned int actualValueIndex2 = visitExpression(binary->right, tempValueIndex2);
 
                 unsigned short opCode = 0;
                 auto typeOfBinary = type(binary->typeName);
@@ -493,17 +495,25 @@ namespace zero {
                         currentProgram()->addInstruction(
                                 (new Instruction())->withOpCode(CAST_DECIMAL)
                                         ->withOp1(actualValueIndex1)
-                                        ->withDestination(actualValueIndex1)
+                                        ->withDestination(decimalTempIndex)
                                         ->withComment("auto cast from int to decimal")
                         );
+                        if (actualValueIndex1 != tempValueIndex1) {
+                            currentTempVariableAllocator()->release(tempValueIndex1);
+                        }
+                        actualValueIndex1 = decimalTempIndex;
                     }
                     if (binary->right->typeName == TypeInfo::INT.name) {
                         currentProgram()->addInstruction(
                                 (new Instruction())->withOpCode(CAST_DECIMAL)
                                         ->withOp1(actualValueIndex2)
-                                        ->withDestination(actualValueIndex2)
+                                        ->withDestination(decimalTempIndex)
                                         ->withComment("auto cast from int to decimal")
                         );
+                        if (actualValueIndex1 != tempValueIndex1) {
+                            currentTempVariableAllocator()->release(tempValueIndex2);
+                        }
+                        actualValueIndex2 = decimalTempIndex;
                     }
                 }
 
@@ -580,8 +590,13 @@ namespace zero {
                                         to_string(actualValueIndex2) + " into " + to_string(preferredIndex))
                 );
 
-                currentTempVariableAllocator()->release(valueIndex1);
-                currentTempVariableAllocator()->release(valueIndex2);
+                if (actualValueIndex1 != tempValueIndex1) {
+                    currentTempVariableAllocator()->release(tempValueIndex1);
+                }
+                if (actualValueIndex2 != tempValueIndex2) {
+                    currentTempVariableAllocator()->release(tempValueIndex2);
+                }
+                currentTempVariableAllocator()->release(decimalTempIndex);
                 return preferredIndex;
             }
 
@@ -657,15 +672,17 @@ namespace zero {
             return valueIndex;
         }
 
-        void cast(unsigned int valueIndex, TypeInfo *t1, TypeInfo *t2) {
+        void cast(unsigned int valueIndex, unsigned int destinationIndex, TypeInfo *t1, TypeInfo *t2) {
             if (t1 != t2) {
                 if (t1 == &TypeInfo::INT && t2 == &TypeInfo::DECIMAL) {
                     currentProgram()->addInstruction(
                             (new Instruction())->withOpCode(CAST_DECIMAL)
                                     ->withOp1(valueIndex)
-                                    ->withDestination(valueIndex)
+                                    ->withDestination(destinationIndex)
                                     ->withComment("auto cast fromm int to float")
                     );
+                } else {
+                    errorExit("cannot cast from " + t1->name + " to " + t2->name);
                 }
             }
         }
@@ -679,7 +696,7 @@ namespace zero {
                 unsigned int actualValueIndex = visitExpression(variable->initialValue, requestedValueIndex);
 
                 auto actualType = type(variable->initialValue->typeName);
-                cast(actualValueIndex, actualType, expectedType);
+                cast(actualValueIndex, destinationIndex, actualType, expectedType);
 
                 if (requestedValueIndex != actualValueIndex) {
                     currentProgram()->addInstruction(

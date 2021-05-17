@@ -37,7 +37,8 @@ namespace zero {
 
     inline z_value_t dvalue(float _val) {
         z_value_t val;
-        val.uint_value = PRIMITIVE_TYPE_DOUBLE | (((uint64_t) _val) << 32);
+        val.arithmetic_decimal_value = _val;
+        val.primitive_type = PRIMITIVE_TYPE_DOUBLE;
         return val;
     }
 

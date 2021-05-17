@@ -17,7 +17,6 @@ print(true || true)
 print(false || true)
 
 var bool = fun (input:boolean):boolean {
-
     print("i was called")
     return input;
 }

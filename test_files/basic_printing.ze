@@ -9,6 +9,9 @@ print("lets see some numbers")
 print(5.56);
 print(5);
 
+print(-8);
+print(-8.75)
+
 print(20 + 10/2 - 12)
 
 print(19.22 + 4)

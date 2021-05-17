@@ -72,10 +72,10 @@ expression
        | expression bop=(STAR|DIV|MOD) expression
        | expression bop=(PLUS|MINUS) expression
        | expression bop=(LTE | GTE | GT | LT) expression
-       | expression bop=AND expression
-       | expression bop=OR expression
        | expression bop=(CMP_EQ | CMP_NE) expression
        | expression bop=EQ expression
+       | expression bop=AND expression
+       | expression bop=OR expression
        ;
 
 primaryExpresssion
