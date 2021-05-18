@@ -105,8 +105,41 @@ namespace zero {
             return tempVariableAllocatorMap[currentContextType];
         }
 
-        TypeInfo *type(string name) {
-            return typeMetadataRepository->findTypeByName(name);
+        TypeInfo *type(string name, int paramCount = 0) {
+            return typeMetadataRepository->findTypeByName(name, paramCount);
+        }
+
+        TypeInfo *functionType(TypeDescriptorAstNode *typeAst) {
+            auto functionType = new TypeInfo("fun", true, typeAst->name == "native");
+            auto paramCount = typeAst->parameters.size();
+            for (int i = 0; i < paramCount; i++) {
+                auto paramAsAst = typeAst->parameters.at(i);
+                auto paramAsType = type(paramAsAst);
+                functionType->addParameter(paramAsType);
+            }
+            return functionType;
+        }
+
+        TypeInfo *type(TypeDescriptorAstNode *typeAst) {
+            // 1 - check that such a type exists considering number of parameters
+            auto name = typeAst->name;
+            if (name == "fun" || name == "native") return functionType(typeAst);
+            auto paramCount = typeAst->parameters.size();
+            auto foundType = type(name, paramCount);
+            if (paramCount == 0) return foundType;
+
+            // if it contains type parameters, create a copy with parameters checked and bound
+            auto clone = new TypeInfo(foundType->name, foundType->isCallable, foundType->isNative);
+            clone->clonePropertiesFrom(foundType);
+
+            // 2- check that every type parameters in the ast exists
+            for (int i = 0; i < paramCount; i++) {
+                auto paramAsAst = typeAst->parameters.at(i);
+                auto paramAsType = type(paramAsAst);
+                clone->addParameter(paramAsType);
+            }
+
+            return clone;
         }
 
         Operator *getOp(string name, int operandCount) {
@@ -116,7 +149,7 @@ namespace zero {
         Program *doGenerateCode(ProgramAstNode *programAstNode) {
             auto globalFnc = new FunctionAstNode();
             globalFnc->program = programAstNode;
-            globalFnc->arguments = new vector<pair<string, string>>();
+            globalFnc->arguments = new vector<pair<string, TypeDescriptorAstNode *>>();
             globalFnc->fileName = programAstNode->fileName;
             globalFnc->line = 0;
             globalFnc->pos = 0;
@@ -270,7 +303,7 @@ namespace zero {
                 case AtomicExpressionAstNode::TYPE_DECIMAL:
                 case AtomicExpressionAstNode::TYPE_INT:
                 case AtomicExpressionAstNode::TYPE_BOOLEAN: {
-                    generateMovImmediate(atomic->data, atomic->typeName, preferredIndex);
+                    generateMovImmediate(atomic->data, atomic->typeDescriptorAstNode->name, preferredIndex);
                     return preferredIndex;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
@@ -327,7 +360,7 @@ namespace zero {
                 );
             }
             currentTempVariableAllocator()->release(tempIndex);
-            auto functionType = type(functionCall->left->typeName);
+            auto functionType = type(functionCall->left->typeDescriptorAstNode);
             auto opCode = functionType->isNative ? CALL_NATIVE : CALL;
 
             unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex);
@@ -485,13 +518,13 @@ namespace zero {
                 unsigned int actualValueIndex2 = visitExpression(binary->right, tempValueIndex2);
 
                 unsigned short opCode = 0;
-                auto typeOfBinary = type(binary->typeName);
-                auto isDecimalOp = binary->left->typeName == TypeInfo::DECIMAL.name ||
-                                   binary->right->typeName == TypeInfo::DECIMAL.name;
+                auto typeOfBinary = type(binary->typeDescriptorAstNode);
+                auto isDecimalOp = binary->left->typeDescriptorAstNode->toString() == TypeInfo::DECIMAL.name ||
+                                   binary->right->typeDescriptorAstNode->toString() == TypeInfo::DECIMAL.name;
 
                 if (isDecimalOp) {
                     // auto casting
-                    if (binary->left->typeName == TypeInfo::INT.name) {
+                    if (binary->left->typeDescriptorAstNode->toString() == TypeInfo::INT.name) {
                         currentProgram()->addInstruction(
                                 (new Instruction())->withOpCode(CAST_DECIMAL)
                                         ->withOp1(actualValueIndex1)
@@ -503,7 +536,7 @@ namespace zero {
                         }
                         actualValueIndex1 = decimalTempIndex;
                     }
-                    if (binary->right->typeName == TypeInfo::INT.name) {
+                    if (binary->right->typeDescriptorAstNode->toString() == TypeInfo::INT.name) {
                         currentProgram()->addInstruction(
                                 (new Instruction())->withOpCode(CAST_DECIMAL)
                                         ->withOp1(actualValueIndex2)
@@ -611,7 +644,7 @@ namespace zero {
 
             unsigned short opCode = 0;
             if (op == &Operator::NEG) {
-                if (prefix->typeName == TypeInfo::DECIMAL.name) {
+                if (prefix->typeDescriptorAstNode->toString() == TypeInfo::DECIMAL.name) {
                     opCode = Opcode::NEG_DECIMAL;
                 } else {
                     opCode = Opcode::NEG_INT;
@@ -689,13 +722,13 @@ namespace zero {
 
         void visitVariable(VariableAstNode *variable) {
             auto destinationIndex = variable->memoryIndex;
-            auto expectedType = type(variable->typeName);
+            auto expectedType = type(variable->typeDescriptorAstNode->name);
 
             if (variable->initialValue != nullptr) {
                 unsigned int requestedValueIndex = destinationIndex;
                 unsigned int actualValueIndex = visitExpression(variable->initialValue, requestedValueIndex);
 
-                auto actualType = type(variable->initialValue->typeName);
+                auto actualType = type(variable->initialValue->typeDescriptorAstNode->toString());
                 cast(actualValueIndex, destinationIndex, actualType, expectedType);
 
                 if (requestedValueIndex != actualValueIndex) {
@@ -709,7 +742,7 @@ namespace zero {
                 }
 
             } else {
-                auto typeObj = type(variable->typeName);
+                auto typeObj = type(variable->typeDescriptorAstNode->name);
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(typeObj == &TypeInfo::DECIMAL ? MOV_DECIMAL : MOV_INT)
                                 ->withOp1(variable->initialValue->memoryIndex)

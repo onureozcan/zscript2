@@ -14,7 +14,7 @@ namespace zero {
     public:
         void registerType(TypeInfo *type);
 
-        TypeInfo *findTypeByName(string name);
+        TypeInfo *findTypeByName(string name, int parameterCount = 0);
 
         TypeMetadataRepository();
 

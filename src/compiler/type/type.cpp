@@ -69,6 +69,12 @@ namespace zero {
         vector<pair<string,string>> getImmediateProperties() {
             return immediates;
         }
+
+        void clonePropertiesFrom(TypeInfo *other) {
+            this->immediates = vector<pair<string,string>>();
+            this->propertiesMap = map<string, PropertyDescriptor *>(other->impl->propertiesMap);
+            this->indexCounter = other->impl->indexCounter;
+        }
     };
 
     TypeInfo::TypeInfo(string name, int isCallable, int isNative) {
@@ -128,5 +134,9 @@ namespace zero {
 
     vector<pair<string,string>> TypeInfo::getImmediateProperties() {
         return impl->getImmediateProperties();
+    }
+
+    void TypeInfo::clonePropertiesFrom(TypeInfo *other) {
+        impl->clonePropertiesFrom(other);
     }
 }

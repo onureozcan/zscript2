@@ -43,31 +43,75 @@ namespace zero {
             return contextStack.back();
         }
 
-        TypeInfo *getOrRegisterFunctionType(vector<string> argTypes, string returnType, int isNative = 0) {
-            string argsStr;
-            for (const auto &argType: argTypes) {
-                argsStr += argType + ",";
+        TypeInfo *getFunctionType(const vector<TypeDescriptorAstNode *> &argTypes,
+                                  TypeDescriptorAstNode *returnType,
+                                  int isNative = false) {
+            auto typeAst = TypeDescriptorAstNode();
+            typeAst.name = isNative ? "native" : "fun";
+            for (auto argType : argTypes) {
+                typeAst.parameters.push_back(argType);
             }
-            auto typeName = string(isNative ? "native" : "fun") + "<" + argsStr + returnType + ">";
-            TypeInfo *type = typeMetadataRepository->findTypeByName(typeName);
-            if (type == nullptr) {
-                type = new TypeInfo(typeName, 1, isNative);
-                for (auto &argType:argTypes) {
-                    type->addParameter(typeOrError(argType));
-                }
-                type->addParameter(typeOrError(returnType));
-                typeMetadataRepository->registerType(type);
-            }
+            typeAst.parameters.push_back(returnType);
+            auto type = constructFunctionTypeFromAst(&typeAst);
+            type->isNative = isNative;
             return type;
         }
 
-        TypeInfo *typeOrError(string name) {
-            auto typeInfo = typeMetadataRepository->findTypeByName(name);
+        TypeInfo *typeOrError(string name, int paramCount = 0) {
+            auto typeInfo = typeMetadataRepository->findTypeByName(name, paramCount);
             if (typeInfo == nullptr) {
                 errorExit("unknown type `" + name + "` " + currentNodeInfoStr());
-
             }
             return typeInfo;
+        }
+
+        TypeInfo *constructFunctionTypeFromAst(TypeDescriptorAstNode *typeAst) {
+            auto functionType = new TypeInfo("fun", true, false);
+            auto paramCount = typeAst->parameters.size();
+            if (paramCount == 0) {
+                errorExit("return type expected for function type " + currentNodeInfoStr());
+            }
+            for (int i = 0; i < paramCount; i++) {
+                auto paramAsAst = typeAst->parameters.at(i);
+                auto paramAsType = typeOrError(paramAsAst);
+                functionType->addParameter(paramAsType);
+            }
+            return functionType;
+        }
+
+        TypeInfo *typeOrError(TypeDescriptorAstNode *typeAst) {
+            // 1 - check that such a type exists considering number of parameters
+            auto name = typeAst->name;
+            auto paramCount = typeAst->parameters.size();
+            if (name == "fun" || name == "native") {
+                // function is a special case. it can have infinite number of parameters and is always exists
+                return constructFunctionTypeFromAst(typeAst);
+            }
+            auto foundType = typeOrError(name, paramCount);
+            if (paramCount == 0) return foundType;
+
+            // if it contains type parameters, create a copy with parameters checked and bound
+            auto clone = new TypeInfo(foundType->name, foundType->isCallable, foundType->isNative);
+            clone->clonePropertiesFrom(foundType);
+
+            // 2- check that every type parameters in the ast exists
+            for (int i = 0; i < paramCount; i++) {
+                auto paramAsAst = typeAst->parameters.at(i);
+                auto paramAsType = typeOrError(paramAsAst);
+                auto typeBoundry = foundType->getParameters().at(i);
+                if (typeBoundry->name != paramAsType->name) {
+                    if (!typeBoundry->isAssignableFrom(paramAsType)) {
+                        errorExit("type bounds check failed for parameterized type ` " + typeAst->toString() + "`: `" +
+                                  typeBoundry->name +
+                                  "` is not assignable from `" +
+                                  paramAsType->name + "` " +
+                                  currentNodeInfoStr());
+                    }
+                }
+                clone->addParameter(paramAsType);
+            }
+
+            return clone;
         }
 
         Operator *opOrError(string name, int operandCount) {
@@ -77,6 +121,17 @@ namespace zero {
             }
             errorExit("there is no such operator named `" + name + "` and takes " + to_string(operandCount) +
                       " operand(s) " + currentNodeInfoStr());
+        }
+
+
+        TypeDescriptorAstNode *typeAstFromTypeInfo(TypeInfo *typeInfo) {
+            auto typeAst = new TypeDescriptorAstNode();
+            typeAst->name = typeInfo->isNative ? "native" : typeInfo->name;
+            auto parameters = typeInfo->getParameters();
+            for (auto &parameter : parameters) {
+                typeAst->parameters.push_back(typeAstFromTypeInfo(parameter));
+            }
+            return typeAst;
         }
 
         LocalPropertyPointer findPropertyInContextChainOrError(string name) {
@@ -94,10 +149,11 @@ namespace zero {
                 depth++;
             }
             errorExit("cannot find variable " + name + currentNodeInfoStr());
+            return {0, nullptr};
         }
 
         TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, string name) {
-            auto typeOfLeft = typeOrError(left->typeName);
+            auto typeOfLeft = typeOrError(left->typeDescriptorAstNode);
             auto typeInfo = typeOfLeft->getProperty(name);
             if (typeInfo == nullptr) {
                 errorExit("object type `" + typeOfLeft->name + "` does not have property named `" + name + "`" +
@@ -109,7 +165,7 @@ namespace zero {
         void visitVariable(VariableAstNode *variable) {
             currentAstNode = variable;
             auto parentContext = currentContext();
-            auto expectedType = typeOrError(variable->typeName);
+            auto expectedType = typeOrError(variable->typeDescriptorAstNode);
             auto selectedType = expectedType;
             if (variable->initialValue == nullptr) {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, expectedType);
@@ -117,7 +173,7 @@ namespace zero {
                           expectedType->name.c_str(), parentContext->name.c_str());
             } else {
                 visitExpression(variable->initialValue);
-                auto initializedType = typeOrError(variable->initialValue->typeName);
+                auto initializedType = typeOrError(variable->initialValue->typeDescriptorAstNode);
                 if (variable->hasExplicitTypeInfo) {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
@@ -127,9 +183,9 @@ namespace zero {
                     }
                 } else {
                     selectedType = initializedType;
+                    variable->typeDescriptorAstNode = variable->initialValue->typeDescriptorAstNode;
                 }
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
-                variable->typeName = selectedType->name;
             }
             log.debug("\n\tvar `%s`:`%s` added to context %s", variable->identifier.c_str(),
                       selectedType->name.c_str(), parentContext->name.c_str());
@@ -141,9 +197,10 @@ namespace zero {
          * @param atomic
          * @param type
          */
-        void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeInfo *type) {
+        void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeDescriptorAstNode *typeAst) {
             auto propertyName = atomic->data;
             unsigned int memoryIndex;
+            auto type = typeOrError(typeAst);
             auto localProperty = currentContext()->getImmediate(propertyName, type);
             if (localProperty == nullptr) {
                 memoryIndex = currentContext()->addImmediate(propertyName, type);
@@ -151,12 +208,12 @@ namespace zero {
                           memoryIndex);
                 localProperty = currentContext()->getImmediate(propertyName, type);
             } else {
-                log.debug("found immediate value %s at index %d, using it instead", atomic->data.c_str(), memoryIndex);
                 memoryIndex = localProperty->index;
+                log.debug("found immediate value %s at index %d, using it instead", atomic->data.c_str(), memoryIndex);
             }
             atomic->memoryIndex = memoryIndex;
             atomic->memoryDepth = 0;
-            atomic->typeName = type->name;
+            atomic->typeDescriptorAstNode = typeAst;
             atomic->atomicType = AtomicExpressionAstNode::TYPE_IDENTIFIER;
             atomic->data = localProperty->name;
         }
@@ -165,19 +222,19 @@ namespace zero {
             currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
-                    convertImmediateToLocalVariable(atomic, &TypeInfo::DECIMAL);
+                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::DECIMAL.name));
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_INT: {
-                    convertImmediateToLocalVariable(atomic, &TypeInfo::INT);
+                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::INT.name));
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_BOOLEAN: {
-                    convertImmediateToLocalVariable(atomic, &TypeInfo::BOOLEAN);
+                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::BOOLEAN.name));
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
-                    atomic->typeName = TypeInfo::STRING.name;
+                    atomic->typeDescriptorAstNode = TypeDescriptorAstNode::from(TypeInfo::STRING.name);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_FUNCTION: {
@@ -186,7 +243,7 @@ namespace zero {
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
                     LocalPropertyPointer depthTypeInfo = findPropertyInContextChainOrError(atomic->data);
-                    atomic->typeName = depthTypeInfo.descriptor->typeInfo->name;
+                    atomic->typeDescriptorAstNode = typeAstFromTypeInfo(depthTypeInfo.descriptor->typeInfo);
                     atomic->memoryDepth = depthTypeInfo.depth;
                     atomic->memoryIndex = depthTypeInfo.descriptor->index;
                     break;
@@ -215,8 +272,10 @@ namespace zero {
                 visitExpression(binary->right);
             }
             try {
-                string returnTypeStr = Operator::getReturnType(op, binary->left->typeName, binary->right->typeName);
-                binary->typeName = returnTypeStr;
+                auto type1 = typeOrError(binary->left->typeDescriptorAstNode);
+                auto type2 = typeOrError(binary->right->typeDescriptorAstNode);
+                string returnTypeStr = Operator::getReturnType(op, type1->name, type2->name);
+                binary->typeDescriptorAstNode = TypeDescriptorAstNode::from(returnTypeStr);
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
             }
@@ -232,19 +291,21 @@ namespace zero {
             auto *right = (AtomicExpressionAstNode *) binary->right;
             auto propertyNameToSearch = right->data;
             auto propertyDescriptor = findPropertyInObjectOrError(binary->left, propertyNameToSearch);
-            binary->right->typeName = propertyDescriptor->name;
+            auto accessResultTypeAst = typeAstFromTypeInfo(propertyDescriptor->typeInfo);
+            binary->right->typeDescriptorAstNode = accessResultTypeAst;
             binary->right->memoryIndex = propertyDescriptor->index;
-            binary->typeName = propertyDescriptor->name;
+            binary->typeDescriptorAstNode = accessResultTypeAst;
             binary->isLvalue = right->isLvalue;
         }
 
-        void visitUnary(PrefixExpressionAstNode *unary) {
-            currentAstNode = unary;
-            visitExpression(unary->right);
-            auto op = opOrError(unary->opName, 1);
+        void visitPrefix(PrefixExpressionAstNode *prefix) {
+            currentAstNode = prefix;
+            visitExpression(prefix->right);
+            auto op = opOrError(prefix->opName, 1);
             try {
-                string returnTypeStr = Operator::getReturnType(op, unary->right->typeName);
-                unary->typeName = returnTypeStr;
+                auto type = typeOrError(prefix->right->typeDescriptorAstNode);
+                string returnTypeStr = Operator::getReturnType(op, type->name);
+                prefix->typeDescriptorAstNode = TypeDescriptorAstNode::from(returnTypeStr);
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
             }
@@ -258,7 +319,7 @@ namespace zero {
             currentAstNode = call;
 
             // check if it is callable
-            auto calleeType = typeOrError(call->left->typeName);
+            auto calleeType = typeOrError(call->left->typeDescriptorAstNode);
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
@@ -270,7 +331,7 @@ namespace zero {
             }
             for (unsigned int i = 0; i < call->params->size(); i++) {
                 auto expectedType = expectedParameterTypes[i];
-                auto givenType = typeOrError(call->params->at(i)->typeName);
+                auto givenType = typeOrError(call->params->at(i)->typeDescriptorAstNode);
                 if (!expectedType->isAssignableFrom(givenType)) {
                     errorExit("cannot pass type `" + givenType->name + "` as parameter to arg of type `" +
                               expectedType->name + "` " + currentNodeInfoStr());
@@ -279,7 +340,7 @@ namespace zero {
 
             // the last parameter is the return type
             auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1);
-            call->typeName = returnType->name;
+            call->typeDescriptorAstNode = typeAstFromTypeInfo(returnType);
         }
 
         void visitExpression(ExpressionAstNode *expression) {
@@ -293,7 +354,7 @@ namespace zero {
                     break;
                 }
                 case ExpressionAstNode::TYPE_UNARY: {
-                    visitUnary((PrefixExpressionAstNode *) expression);
+                    visitPrefix((PrefixExpressionAstNode *) expression);
                     break;
                 }
                 case ExpressionAstNode::TYPE_FUNCTION_CALL: {
@@ -322,8 +383,9 @@ namespace zero {
             currentContext()->addProperty("$parent", &TypeInfo::ANY);
 
             // native print function
-            currentContext()->addProperty("print",
-                                          getOrRegisterFunctionType({TypeInfo::ANY.name}, TypeInfo::T_VOID.name, 1));
+            currentContext()->addProperty("print", getFunctionType({TypeDescriptorAstNode::from(TypeInfo::ANY.name)},
+                                                                   TypeDescriptorAstNode::from(TypeInfo::T_VOID.name),
+                                                                   true));
 
             auto statements = program->statements;
             for (auto stmt: *statements) {
@@ -339,17 +401,17 @@ namespace zero {
 
             auto currentFunction = functionsStack.at(functionsStack.size() - 1);
 
-            auto returnTypeName = TypeInfo::T_VOID.name;
+            auto returnType = &TypeInfo::T_VOID;
             if (stmt->expression != nullptr) {
                 visitExpression(stmt->expression);
-                returnTypeName = stmt->expression->typeName;
+                returnType = typeOrError(stmt->expression->typeDescriptorAstNode);
             }
 
-            auto functionType = typeOrError(currentFunction->typeName);
+            auto functionType = typeOrError(currentFunction->typeDescriptorAstNode);
             auto expectedReturnType = functionType->getParameters().back();
 
-            if (!expectedReturnType->isAssignableFrom(typeOrError(returnTypeName))) {
-                errorExit("cannot return `" + returnTypeName + "` from a function that returns `" +
+            if (!expectedReturnType->isAssignableFrom(returnType)) {
+                errorExit("cannot return `" + returnType->name + "` from a function that returns `" +
                           expectedReturnType->name + "` " + currentNodeInfoStr());
             }
         }
@@ -360,7 +422,7 @@ namespace zero {
             }
             if (loop->loopConditionExpression != nullptr) {
                 visitExpression(loop->loopConditionExpression);
-                if (loop->loopConditionExpression->typeName != TypeInfo::BOOLEAN.name) {
+                if (loop->loopConditionExpression->typeDescriptorAstNode->name != TypeInfo::BOOLEAN.name) {
                     errorExit("a boolean expression as a loop condition was expected" + currentNodeInfoStr());
                 }
             }
@@ -411,17 +473,17 @@ namespace zero {
             for (const auto &piece : *function->arguments) {
                 currentContext()->addProperty(piece.first, typeOrError(piece.second));
                 log.debug("\n\targument `%s`:`%s` added to context %s", piece.first.c_str(),
-                          piece.second.c_str(), currentContext()->name.c_str());
+                          piece.second->toString().c_str(), currentContext()->name.c_str());
             }
 
             // create and register function type
-            vector<string> argTypes;
+            vector<TypeDescriptorAstNode *> argTypes;
             for (const auto &piece : *function->arguments) {
                 argTypes.push_back(piece.second);
             }
 
-            TypeInfo *functionType = getOrRegisterFunctionType(argTypes, function->returnTypeName);
-            function->typeName = functionType->name;
+            TypeInfo *functionType = getFunctionType(argTypes, function->returnType);
+            function->typeDescriptorAstNode = typeAstFromTypeInfo(functionType);
 
             // visit children
             auto statements = function->program->statements;

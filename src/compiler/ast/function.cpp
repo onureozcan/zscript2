@@ -15,16 +15,18 @@ namespace zero {
         function->expressionType = TYPE_ATOMIC;
         function->atomicType = TYPE_FUNCTION;
 
-        function->arguments = new vector<pair<string, string>>();
+        function->arguments = new vector<pair<string, TypeDescriptorAstNode *>>();
         for (auto &piece: functionContext->typedIdent()) {
             string argName = piece->ident->getText();
-            string typeName = piece->type == nullptr ? TypeInfo::ANY.name : piece->type->getText();
-            function->arguments->push_back({argName, typeName});
+            auto typeAst = piece->type == nullptr ?
+                           TypeDescriptorAstNode::from(TypeInfo::ANY.name) : TypeDescriptorAstNode::from(piece->type,
+                                                                                                         fileName);
+            function->arguments->push_back({argName, typeAst});
         }
         if (functionContext->type != nullptr) {
-            function->returnTypeName = functionContext->type->getText();
+            function->returnType = TypeDescriptorAstNode::from(functionContext->type, fileName);
         } else {
-            function->returnTypeName = TypeInfo::T_VOID.name;
+            function->returnType = TypeDescriptorAstNode::from(TypeInfo::T_VOID.name);
         }
 
         function->program = ProgramAstNode::from(functionContext->program(), fileName);

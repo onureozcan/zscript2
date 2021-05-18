@@ -57,6 +57,8 @@ namespace zero {
 
         vector<pair<string, string>> getImmediateProperties();
 
+        void clonePropertiesFrom(TypeInfo* other);
+
     private:
         Impl *impl;
     };

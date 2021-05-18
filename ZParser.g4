@@ -52,7 +52,7 @@ function
         ;
 
 typeDescriptor
-        : IDENT | (FUN LT (typeDescriptor) (COMMA (typeDescriptor))* GT)
+        : typeName = (IDENT | FUN) (LT (typeDescriptor) (COMMA (typeDescriptor))* GT)?
         ;
 
 typedIdent
