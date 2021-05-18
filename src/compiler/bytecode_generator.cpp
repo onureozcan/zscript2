@@ -742,12 +742,15 @@ namespace zero {
                 }
 
             } else {
-                auto typeObj = type(variable->typeDescriptorAstNode->name);
+                // NULL initializer
+                auto typeObj = type(variable->typeDescriptorAstNode);
+                auto opCode = typeObj == &TypeInfo::DECIMAL ? MOV_DECIMAL : MOV_INT;
+                auto initialValue = typeObj == &TypeInfo::DECIMAL ? 0.0f : 0;
                 currentProgram()->addInstruction(
-                        (new Instruction())->withOpCode(typeObj == &TypeInfo::DECIMAL ? MOV_DECIMAL : MOV_INT)
-                                ->withOp1(variable->initialValue->memoryIndex)
+                        (new Instruction())->withOpCode(opCode)
+                                ->withOp1(initialValue)
                                 ->withDestination(destinationIndex)
-                                ->withComment("mov immediate value into index " +
+                                ->withComment("mov NULL value into index " +
                                               to_string(destinationIndex) + " (" + variable->identifier + ")")
                 );
             }
