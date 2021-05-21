@@ -57,7 +57,7 @@ namespace zero {
             return type;
         }
 
-        TypeInfo *typeOrError(string name, int paramCount = 0) {
+        TypeInfo *typeOrError(const string& name, int paramCount = 0) {
             auto typeInfo = typeMetadataRepository->findTypeByName(name, paramCount);
             if (typeInfo == nullptr) {
                 errorExit("unknown type `" + name + "` " + currentNodeInfoStr());
@@ -114,27 +114,17 @@ namespace zero {
             return clone;
         }
 
-        Operator *opOrError(string name, int operandCount) {
+        Operator *opOrError(const string& name, int operandCount) {
             auto op = Operator::getBy(name, operandCount);
             if (op != nullptr) {
                 return op;
             }
             errorExit("there is no such operator named `" + name + "` and takes " + to_string(operandCount) +
                       " operand(s) " + currentNodeInfoStr());
+            return nullptr;
         }
 
-
-        TypeDescriptorAstNode *typeAstFromTypeInfo(TypeInfo *typeInfo) {
-            auto typeAst = new TypeDescriptorAstNode();
-            typeAst->name = typeInfo->isNative ? "native" : typeInfo->name;
-            auto parameters = typeInfo->getParameters();
-            for (auto &parameter : parameters) {
-                typeAst->parameters.push_back(typeAstFromTypeInfo(parameter));
-            }
-            return typeAst;
-        }
-
-        LocalPropertyPointer findPropertyInContextChainOrError(string name) {
+        LocalPropertyPointer findPropertyInContextChainOrError(const string& name) {
             int depth = 0;
             TypeInfo *current;
             while (true) {
@@ -152,8 +142,8 @@ namespace zero {
             return {0, nullptr};
         }
 
-        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, string name) {
-            auto typeOfLeft = typeOrError(left->typeDescriptorAstNode);
+        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, const string& name) {
+            auto typeOfLeft = left->resolvedType;
             auto typeInfo = typeOfLeft->getProperty(name);
             if (typeInfo == nullptr) {
                 errorExit("object type `" + typeOfLeft->name + "` does not have property named `" + name + "`" +
@@ -173,7 +163,7 @@ namespace zero {
                           expectedType->name.c_str(), parentContext->name.c_str());
             } else {
                 visitExpression(variable->initialValue);
-                auto initializedType = typeOrError(variable->initialValue->typeDescriptorAstNode);
+                auto initializedType = variable->initialValue->resolvedType;
                 if (variable->hasExplicitTypeInfo) {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
@@ -183,10 +173,10 @@ namespace zero {
                     }
                 } else {
                     selectedType = initializedType;
-                    variable->typeDescriptorAstNode = variable->initialValue->typeDescriptorAstNode;
                 }
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
             }
+            variable->resolvedType = selectedType;
             log.debug("\n\tvar `%s`:`%s` added to context %s", variable->identifier.c_str(),
                       selectedType->name.c_str(), parentContext->name.c_str());
         }
@@ -197,10 +187,9 @@ namespace zero {
          * @param atomic
          * @param type
          */
-        void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeDescriptorAstNode *typeAst) {
+        void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeInfo *type) {
             auto propertyName = atomic->data;
             unsigned int memoryIndex;
-            auto type = typeOrError(typeAst);
             auto localProperty = currentContext()->getImmediate(propertyName, type);
             if (localProperty == nullptr) {
                 memoryIndex = currentContext()->addImmediate(propertyName, type);
@@ -213,7 +202,7 @@ namespace zero {
             }
             atomic->memoryIndex = memoryIndex;
             atomic->memoryDepth = 0;
-            atomic->typeDescriptorAstNode = typeAst;
+            atomic->resolvedType = type;
             atomic->atomicType = AtomicExpressionAstNode::TYPE_IDENTIFIER;
             atomic->data = localProperty->name;
         }
@@ -222,19 +211,19 @@ namespace zero {
             currentAstNode = atomic;
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL: {
-                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::DECIMAL.name));
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::DECIMAL);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_INT: {
-                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::INT.name));
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::INT);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_BOOLEAN: {
-                    convertImmediateToLocalVariable(atomic, TypeDescriptorAstNode::from(TypeInfo::BOOLEAN.name));
+                    convertImmediateToLocalVariable(atomic, &TypeInfo::BOOLEAN);
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_STRING: {
-                    atomic->typeDescriptorAstNode = TypeDescriptorAstNode::from(TypeInfo::STRING.name);
+                    atomic->resolvedType = &TypeInfo::STRING;
                     break;
                 }
                 case AtomicExpressionAstNode::TYPE_FUNCTION: {
@@ -243,7 +232,7 @@ namespace zero {
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
                     LocalPropertyPointer depthTypeInfo = findPropertyInContextChainOrError(atomic->data);
-                    atomic->typeDescriptorAstNode = typeAstFromTypeInfo(depthTypeInfo.descriptor->typeInfo);
+                    atomic->resolvedType = depthTypeInfo.descriptor->typeInfo;
                     atomic->memoryDepth = depthTypeInfo.depth;
                     atomic->memoryIndex = depthTypeInfo.descriptor->index;
                     break;
@@ -261,7 +250,7 @@ namespace zero {
 
         void visitBinary(BinaryExpressionAstNode *binary) {
             currentAstNode = binary;
-            Operator *op = opOrError(binary->opName, 2);
+            auto op = opOrError(binary->opName, 2);
             if (op == &Operator::DOT) {
                 visitDot(binary);
                 return;
@@ -272,10 +261,10 @@ namespace zero {
                 visitExpression(binary->right);
             }
             try {
-                auto type1 = typeOrError(binary->left->typeDescriptorAstNode);
-                auto type2 = typeOrError(binary->right->typeDescriptorAstNode);
-                string returnTypeStr = Operator::getReturnType(op, type1->name, type2->name);
-                binary->typeDescriptorAstNode = TypeDescriptorAstNode::from(returnTypeStr);
+                TypeInfo* type1 = binary->left->resolvedType;
+                TypeInfo* type2 = binary->right->resolvedType;
+                TypeInfo* returnType = Operator::getReturnType(op, type1, type2);
+                binary->resolvedType = returnType;
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
             }
@@ -291,10 +280,9 @@ namespace zero {
             auto *right = (AtomicExpressionAstNode *) binary->right;
             auto propertyNameToSearch = right->data;
             auto propertyDescriptor = findPropertyInObjectOrError(binary->left, propertyNameToSearch);
-            auto accessResultTypeAst = typeAstFromTypeInfo(propertyDescriptor->typeInfo);
-            binary->right->typeDescriptorAstNode = accessResultTypeAst;
+            binary->right->resolvedType = propertyDescriptor->typeInfo;
             binary->right->memoryIndex = propertyDescriptor->index;
-            binary->typeDescriptorAstNode = accessResultTypeAst;
+            binary->resolvedType = propertyDescriptor->typeInfo;
             binary->isLvalue = right->isLvalue;
         }
 
@@ -303,9 +291,9 @@ namespace zero {
             visitExpression(prefix->right);
             auto op = opOrError(prefix->opName, 1);
             try {
-                auto type = typeOrError(prefix->right->typeDescriptorAstNode);
-                string returnTypeStr = Operator::getReturnType(op, type->name);
-                prefix->typeDescriptorAstNode = TypeDescriptorAstNode::from(returnTypeStr);
+                auto type = prefix->right->resolvedType;
+                TypeInfo* returnType = Operator::getReturnType(op, type);
+                prefix->resolvedType = returnType;
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
             }
@@ -319,7 +307,7 @@ namespace zero {
             currentAstNode = call;
 
             // check if it is callable
-            auto calleeType = typeOrError(call->left->typeDescriptorAstNode);
+            auto calleeType = call->left->resolvedType;
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
@@ -331,7 +319,7 @@ namespace zero {
             }
             for (unsigned int i = 0; i < call->params->size(); i++) {
                 auto expectedType = expectedParameterTypes[i];
-                auto givenType = typeOrError(call->params->at(i)->typeDescriptorAstNode);
+                auto givenType = call->params->at(i)->resolvedType;
                 if (!expectedType->isAssignableFrom(givenType)) {
                     errorExit("cannot pass type `" + givenType->name + "` as parameter to arg of type `" +
                               expectedType->name + "` " + currentNodeInfoStr());
@@ -340,7 +328,7 @@ namespace zero {
 
             // the last parameter is the return type
             auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1);
-            call->typeDescriptorAstNode = typeAstFromTypeInfo(returnType);
+            call->resolvedType = returnType;
         }
 
         void visitExpression(ExpressionAstNode *expression) {
@@ -404,10 +392,10 @@ namespace zero {
             auto returnType = &TypeInfo::T_VOID;
             if (stmt->expression != nullptr) {
                 visitExpression(stmt->expression);
-                returnType = typeOrError(stmt->expression->typeDescriptorAstNode);
+                returnType = stmt->expression->resolvedType;
             }
 
-            auto functionType = typeOrError(currentFunction->typeDescriptorAstNode);
+            auto functionType = currentFunction->resolvedType;
             auto expectedReturnType = functionType->getParameters().back();
 
             if (!expectedReturnType->isAssignableFrom(returnType)) {
@@ -422,7 +410,7 @@ namespace zero {
             }
             if (loop->loopConditionExpression != nullptr) {
                 visitExpression(loop->loopConditionExpression);
-                if (loop->loopConditionExpression->typeDescriptorAstNode->name != TypeInfo::BOOLEAN.name) {
+                if (loop->loopConditionExpression->resolvedType->name != TypeInfo::BOOLEAN.name) {
                     errorExit("a boolean expression as a loop condition was expected" + currentNodeInfoStr());
                 }
             }
@@ -483,7 +471,7 @@ namespace zero {
             }
 
             TypeInfo *functionType = getFunctionType(argTypes, function->returnType);
-            function->typeDescriptorAstNode = typeAstFromTypeInfo(functionType);
+            function->resolvedType = functionType;
 
             // visit children
             auto statements = function->program->statements;
@@ -500,8 +488,8 @@ namespace zero {
         this->impl->extractAndRegister(function);
     }
 
-    TypeMetadataExtractor::TypeMetadataExtractor(TypeMetadataRepository *repository) {
+    TypeMetadataExtractor::TypeMetadataExtractor() {
         this->impl = new Impl();
-        this->impl->typeMetadataRepository = repository;
+        this->impl->typeMetadataRepository = TypeMetadataRepository::getInstance();
     }
 }

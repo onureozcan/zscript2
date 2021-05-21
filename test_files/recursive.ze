@@ -1,4 +1,4 @@
-var fib:fun<int,int>
+var fib: fun<int,int>
 
 fib = fun (num: int) : int {
     if (num == 2) {

@@ -50,21 +50,21 @@ namespace zero {
         return nullptr;
     }
 
-    string Operator::getReturnType(Operator *op, string type1, string type2) {
+    TypeInfo *Operator::getReturnType(Operator *op, TypeInfo *type1, TypeInfo *type2) {
         if (op == &ASSIGN) {
-            if (type1 == type2) {
-                return type1;
+            if (type1->name == type2->name) {
+                return &TypeInfo::T_VOID;
             }
         }
         auto isNumericOperator = op == &MUL || op == &DIV || op == &SUB || op == &ADD || op == &MOD;
 
         if (isNumericOperator) {
-            if (type1 == TypeInfo::DECIMAL.name) {
-                if (type2 == TypeInfo::DECIMAL.name || type2 == TypeInfo::INT.name) {
+            if (type1->name == TypeInfo::DECIMAL.name) {
+                if (type2->name == TypeInfo::DECIMAL.name || type2->name == TypeInfo::INT.name) {
                     return type1;
                 }
-            } else if (type1 == TypeInfo::INT.name) {
-                if (type2 == TypeInfo::DECIMAL.name || type2 == TypeInfo::INT.name) {
+            } else if (type1->name == TypeInfo::INT.name) {
+                if (type2->name == TypeInfo::DECIMAL.name || type2->name == TypeInfo::INT.name) {
                     return type2;
                 }
             }
@@ -72,7 +72,7 @@ namespace zero {
 
         if (op == &ADD) {
             // string addition case
-            if (type1 == TypeInfo::STRING.name && type2 == type1) {
+            if (type1->name == TypeInfo::STRING.name && type2->name == type1->name) {
                 return type1;
             }
         }
@@ -81,27 +81,28 @@ namespace zero {
                 op == &CMP_E || op == &CMP_NE || op == &LT || op == &LTE || op == &GT || op == &GTE;
 
         if (isNumericComparisonOperator) {
-            if ((type1 == TypeInfo::INT.name || type1 == TypeInfo::DECIMAL.name)
-                && (type2 == TypeInfo::INT.name || type2 == TypeInfo::DECIMAL.name)) {
-                return TypeInfo::BOOLEAN.name;
+            if ((type1->name == TypeInfo::INT.name || type1->name == TypeInfo::DECIMAL.name)
+                && (type2->name == TypeInfo::INT.name || type2->name == TypeInfo::DECIMAL.name)) {
+                return &TypeInfo::BOOLEAN;
             }
         }
 
         if (op == &AND || op == &OR) {
-            if (type1 == type2 && type1 == TypeInfo::BOOLEAN.name) {
-                return TypeInfo::BOOLEAN.name;
+            if (type1->name == type2->name && type1->name == TypeInfo::BOOLEAN.name) {
+                return &TypeInfo::BOOLEAN;
             }
         }
 
-        throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "` and `" + type2 + "`");
+        throw runtime_error(
+                "operator `" + op->name + "` does not work on `" + type1->name + "` and `" + type2->name + "`");
     }
 
-    string Operator::getReturnType(Operator *op, string type1) {
+    TypeInfo *Operator::getReturnType(Operator *op, TypeInfo *type1) {
         if (op == &Operator::NEG) {
-            if (type1 == TypeInfo::DECIMAL.name || type1 == TypeInfo::INT.name) {
+            if (type1->name == TypeInfo::DECIMAL.name || type1->name == TypeInfo::INT.name) {
                 return type1;
             }
         }
-        throw runtime_error("operator `" + op->name + "` does not work on `" + type1 + "`");
+        throw runtime_error("operator `" + op->name + "` does not work on `" + type1->name + "`");
     }
 }

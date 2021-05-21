@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <compiler/ast.h>
+#include <vector>
 
 #define TYPE_LITERAL_STRING "String"
 #define TYPE_LITERAL_INT "int"
@@ -39,11 +39,11 @@ namespace zero {
 
         void addParameter(TypeInfo *type);
 
-        vector<TypeInfo*> getParameters();
+        vector<TypeInfo *> getParameters();
 
         unsigned int addProperty(string name, TypeInfo *type);
 
-        int isAssignableFrom(TypeInfo* other);
+        int isAssignableFrom(TypeInfo *other);
 
         int getPropertyCount();
 
@@ -57,7 +57,7 @@ namespace zero {
 
         vector<pair<string, string>> getImmediateProperties();
 
-        void clonePropertiesFrom(TypeInfo* other);
+        void clonePropertiesFrom(TypeInfo *other);
 
     private:
         Impl *impl;

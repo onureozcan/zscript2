@@ -1,4 +1,5 @@
 #include <compiler/type.h>
+#include <map>
 
 namespace zero {
 
@@ -13,7 +14,7 @@ namespace zero {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
         vector<TypeInfo *> typeParameters;
-        vector<pair<string,string>> immediates;
+        vector<pair<string, string>> immediates;
         int indexCounter = 0;
     public:
 
@@ -66,12 +67,12 @@ namespace zero {
             return getProperty(immediateName);
         }
 
-        vector<pair<string,string>> getImmediateProperties() {
+        vector<pair<string, string>> getImmediateProperties() {
             return immediates;
         }
 
         void clonePropertiesFrom(TypeInfo *other) {
-            this->immediates = vector<pair<string,string>>();
+            this->immediates = vector<pair<string, string>>();
             this->propertiesMap = map<string, PropertyDescriptor *>(other->impl->propertiesMap);
             this->indexCounter = other->impl->indexCounter;
         }
@@ -132,7 +133,7 @@ namespace zero {
         return impl->addImmediate(propertyName, typeInfo);
     }
 
-    vector<pair<string,string>> TypeInfo::getImmediateProperties() {
+    vector<pair<string, string>> TypeInfo::getImmediateProperties() {
         return impl->getImmediateProperties();
     }
 

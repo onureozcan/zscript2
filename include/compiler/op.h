@@ -1,5 +1,7 @@
 #pragma once
 
+#include <compiler/type.h>
+
 #include <string>
 #include <vector>
 
@@ -44,8 +46,8 @@ namespace zero {
 
         static Operator *getBy(string name, int numberOfOperands);
 
-        static string getReturnType(Operator *op, string type1, string type2);
+        static TypeInfo* getReturnType(Operator *op, TypeInfo* type1, TypeInfo* type2);
 
-        static string getReturnType(Operator *op, string operand1);
+        static TypeInfo* getReturnType(Operator *op, TypeInfo* type1);
     };
 }
