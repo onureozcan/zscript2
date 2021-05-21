@@ -15,6 +15,7 @@ using namespace std;
 namespace zero {
     class TypeInfo {
         class Impl;
+
     public:
 
         class PropertyDescriptor {
@@ -37,23 +38,23 @@ namespace zero {
 
         explicit TypeInfo(string name, int isCallable, int isNative = 0);
 
-        void addParameter(TypeInfo *type);
+        void addParameter(const string& parameterIdent, TypeInfo *type);
 
-        vector<TypeInfo *> getParameters();
+        vector<pair<string, TypeInfo *>> getParameters();
 
-        unsigned int addProperty(string name, TypeInfo *type);
+        unsigned int addProperty(const string& propertyName, TypeInfo *type);
 
         int isAssignableFrom(TypeInfo *other);
 
         int getPropertyCount();
 
-        PropertyDescriptor *getProperty(string name);
+        PropertyDescriptor *getProperty(const string& propertyName);
 
-        void removeProperty(string basicString);
+        void removeProperty(const string& basicString);
 
-        unsigned int addImmediate(string basicString, TypeInfo *pInfo);
+        unsigned int addImmediate(const string& basicString, TypeInfo *pInfo);
 
-        PropertyDescriptor *getImmediate(string name, TypeInfo *type);
+        PropertyDescriptor *getImmediate(const string& immediateName, TypeInfo *type);
 
         vector<pair<string, string>> getImmediateProperties();
 

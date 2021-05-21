@@ -1,8 +1,8 @@
 #include <compiler/type_meta.h>
 
-#include <utility>
-
 namespace zero {
+
+    TypeMetadataRepository* TypeMetadataRepository::instance = nullptr;
 
     class TypeMetadataRepository::Impl {
     private:
@@ -26,7 +26,7 @@ namespace zero {
             registerType(&TypeInfo::T_VOID);
         }
 
-        TypeInfo *findTypeByName(string name, int paramCount = 0) {
+        TypeInfo *findTypeByName(const string& name, int paramCount = 0) {
             auto searchKey = getSearchKey(name, paramCount);
             if (typeMap.find(searchKey) != typeMap.end())
                 return typeMap[searchKey];
@@ -46,7 +46,12 @@ namespace zero {
         impl->registerType(type);
     }
 
-    TypeInfo *TypeMetadataRepository::findTypeByName(string name, int parameterCount) {
-        return impl->findTypeByName(std::move(name), parameterCount);
+    TypeInfo *TypeMetadataRepository::findTypeByName(const string& name, int parameterCount) {
+        return impl->findTypeByName(name, parameterCount);
+    }
+
+    TypeMetadataRepository *TypeMetadataRepository::getInstance() {
+        if (instance == nullptr) instance = new TypeMetadataRepository();
+        return instance;
     }
 }

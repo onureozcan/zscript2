@@ -27,7 +27,7 @@ namespace zero {
 
         Program * generate(ProgramAstNode* programAstNode);
 
-        ByteCodeGenerator(TypeMetadataRepository* typeMetadataRepository);
+        ByteCodeGenerator();
 
     private:
         Impl* impl;

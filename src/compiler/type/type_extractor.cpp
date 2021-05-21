@@ -28,7 +28,7 @@ namespace zero {
         vector<TypeInfo *> contextStack;
         vector<FunctionAstNode *> functionsStack;
 
-        void errorExit(string error) {
+        void errorExit(const string& error) {
             log.error(error.c_str());
             exit(1);
         }
@@ -57,7 +57,7 @@ namespace zero {
             return type;
         }
 
-        TypeInfo *typeOrError(const string& name, int paramCount = 0) {
+        TypeInfo *typeOrError(const string &name, int paramCount = 0) {
             auto typeInfo = typeMetadataRepository->findTypeByName(name, paramCount);
             if (typeInfo == nullptr) {
                 errorExit("unknown type `" + name + "` " + currentNodeInfoStr());
@@ -74,7 +74,7 @@ namespace zero {
             for (int i = 0; i < paramCount; i++) {
                 auto paramAsAst = typeAst->parameters.at(i);
                 auto paramAsType = typeOrError(paramAsAst);
-                functionType->addParameter(paramAsType);
+                functionType->addParameter("T" + to_string(i), paramAsType);
             }
             return functionType;
         }
@@ -98,7 +98,9 @@ namespace zero {
             for (int i = 0; i < paramCount; i++) {
                 auto paramAsAst = typeAst->parameters.at(i);
                 auto paramAsType = typeOrError(paramAsAst);
-                auto typeBoundry = foundType->getParameters().at(i);
+                auto typeBoundryPair = foundType->getParameters().at(i);
+                auto typeBoundry = typeBoundryPair.second;
+                auto typeBoundryIdent = typeBoundryPair.first;
                 if (typeBoundry->name != paramAsType->name) {
                     if (!typeBoundry->isAssignableFrom(paramAsType)) {
                         errorExit("type bounds check failed for parameterized type ` " + typeAst->toString() + "`: `" +
@@ -108,13 +110,13 @@ namespace zero {
                                   currentNodeInfoStr());
                     }
                 }
-                clone->addParameter(paramAsType);
+                clone->addParameter(typeBoundryIdent, paramAsType);
             }
 
             return clone;
         }
 
-        Operator *opOrError(const string& name, int operandCount) {
+        Operator *opOrError(const string &name, int operandCount) {
             auto op = Operator::getBy(name, operandCount);
             if (op != nullptr) {
                 return op;
@@ -124,7 +126,7 @@ namespace zero {
             return nullptr;
         }
 
-        LocalPropertyPointer findPropertyInContextChainOrError(const string& name) {
+        LocalPropertyPointer findPropertyInContextChainOrError(const string &name) {
             int depth = 0;
             TypeInfo *current;
             while (true) {
@@ -142,7 +144,7 @@ namespace zero {
             return {0, nullptr};
         }
 
-        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, const string& name) {
+        TypeInfo::PropertyDescriptor *findPropertyInObjectOrError(ExpressionAstNode *left, const string &name) {
             auto typeOfLeft = left->resolvedType;
             auto typeInfo = typeOfLeft->getProperty(name);
             if (typeInfo == nullptr) {
@@ -261,9 +263,9 @@ namespace zero {
                 visitExpression(binary->right);
             }
             try {
-                TypeInfo* type1 = binary->left->resolvedType;
-                TypeInfo* type2 = binary->right->resolvedType;
-                TypeInfo* returnType = Operator::getReturnType(op, type1, type2);
+                TypeInfo *type1 = binary->left->resolvedType;
+                TypeInfo *type2 = binary->right->resolvedType;
+                TypeInfo *returnType = Operator::getReturnType(op, type1, type2);
                 binary->resolvedType = returnType;
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
@@ -292,7 +294,7 @@ namespace zero {
             auto op = opOrError(prefix->opName, 1);
             try {
                 auto type = prefix->right->resolvedType;
-                TypeInfo* returnType = Operator::getReturnType(op, type);
+                TypeInfo *returnType = Operator::getReturnType(op, type);
                 prefix->resolvedType = returnType;
             } catch (runtime_error e) {
                 errorExit(e.what() + currentNodeInfoStr());
@@ -318,7 +320,7 @@ namespace zero {
                           to_string(call->params->size()) + "" + currentNodeInfoStr());
             }
             for (unsigned int i = 0; i < call->params->size(); i++) {
-                auto expectedType = expectedParameterTypes[i];
+                auto expectedType = expectedParameterTypes[i].second;
                 auto givenType = call->params->at(i)->resolvedType;
                 if (!expectedType->isAssignableFrom(givenType)) {
                     errorExit("cannot pass type `" + givenType->name + "` as parameter to arg of type `" +
@@ -327,7 +329,7 @@ namespace zero {
             }
 
             // the last parameter is the return type
-            auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1);
+            auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1).second;
             call->resolvedType = returnType;
         }
 
@@ -396,7 +398,7 @@ namespace zero {
             }
 
             auto functionType = currentFunction->resolvedType;
-            auto expectedReturnType = functionType->getParameters().back();
+            auto expectedReturnType = functionType->getParameters().back().second;
 
             if (!expectedReturnType->isAssignableFrom(returnType)) {
                 errorExit("cannot return `" + returnType->name + "` from a function that returns `" +

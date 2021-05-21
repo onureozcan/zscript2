@@ -4,6 +4,8 @@
 
 #include "ZParser.h"
 
+#include <compiler/type.h>
+
 using namespace std;
 
 namespace zero {
@@ -40,7 +42,9 @@ namespace zero {
 
         int isLvalue;
 
-        TypeDescriptorAstNode *typeDescriptorAstNode;
+        //TypeDescriptorAstNode *typeDescriptorAstNode;
+
+        TypeInfo* resolvedType;
 
         static const int TYPE_ATOMIC = 0;
         static const int TYPE_UNARY = 1;
@@ -91,6 +95,8 @@ namespace zero {
 
         ExpressionAstNode *initialValue;
         TypeDescriptorAstNode* typeDescriptorAstNode;
+
+        TypeInfo* resolvedType;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);
 

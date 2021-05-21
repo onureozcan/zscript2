@@ -37,9 +37,8 @@ namespace zero {
 
     private:
         Logger log = Logger("compiler");
-        TypeMetadataRepository typeRepository;
-        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor(&typeRepository);
-        ByteCodeGenerator byteCodeGenerator = ByteCodeGenerator(&typeRepository);
+        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor();
+        ByteCodeGenerator byteCodeGenerator = ByteCodeGenerator();
 
         Program* doCompile(ProgramAstNode *programAst) {
             extractAndRegisterTypeMetadata(programAst);

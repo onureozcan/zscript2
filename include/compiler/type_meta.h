@@ -12,13 +12,18 @@ namespace zero {
         class Impl;
 
     public:
+
+        static TypeMetadataRepository * getInstance();
+
         void registerType(TypeInfo *type);
 
-        TypeInfo *findTypeByName(string name, int parameterCount = 0);
-
-        TypeMetadataRepository();
+        TypeInfo *findTypeByName(const string& name, int parameterCount = 0);
 
     private:
+        TypeMetadataRepository();
+
+        static TypeMetadataRepository* instance;
+
         Impl *impl;
     };
 
@@ -28,7 +33,7 @@ namespace zero {
     public:
         void extractAndRegister(ProgramAstNode *program);
 
-        explicit TypeMetadataExtractor(TypeMetadataRepository* repository);
+        explicit TypeMetadataExtractor();
 
     private:
         Impl *impl;

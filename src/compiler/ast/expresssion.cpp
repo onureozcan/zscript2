@@ -88,17 +88,17 @@ namespace zero {
                 for (auto &piece: *call->params) {
                     paramsStr += piece->toString() + ",";
                 }
-                return "(" + call->left->toString() + "(" + paramsStr + "):" + typeDescriptorAstNode->toString() + ")";
+                return "(" + call->left->toString() + "(" + paramsStr + "):" + resolvedType->name + ")";
             }
             case TYPE_UNARY: {
                 auto prefix = ((PrefixExpressionAstNode *) this);
-                return "(" + prefix->opName + "" + prefix->right->toString() + ":" + typeDescriptorAstNode->toString() +
+                return "(" + prefix->opName + "" + prefix->right->toString() + ":" + resolvedType->name +
                        ")";
             }
             case TYPE_BINARY: {
                 auto binary = ((BinaryExpressionAstNode *) this);
                 return "(" + binary->left->toString() + "" + binary->opName + "" +
-                       binary->right->toString() + ":" + typeDescriptorAstNode->toString() + ")";
+                       binary->right->toString() + ":" + resolvedType->name + ")";
             }
             case TYPE_ATOMIC: {
                 auto atom = ((AtomicExpressionAstNode *) this);
@@ -110,9 +110,9 @@ namespace zero {
                     }
                     return "(fun(" + argsStr + "){\n" + function->program->toString() +
                            "}: " +
-                           typeDescriptorAstNode->toString() + ")";
+                           resolvedType->name + ")";
                 } else {
-                    return "(" + atom->data + ":" + typeDescriptorAstNode->toString() + ")";
+                    return "(" + atom->data + ":" + resolvedType->name + ")";
                 }
             }
             default: {
