@@ -13,12 +13,12 @@ namespace zero {
     class TypeInfo::Impl {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
-        vector<pair<string,TypeInfo *>> typeParameters;
+        vector<pair<string, TypeInfo *>> typeParameters;
         vector<pair<string, string>> immediates;
         int indexCounter = 0;
     public:
 
-        unsigned int addProperty(const string& propertyName, TypeInfo *typeInfo) {
+        unsigned int addProperty(const string &propertyName, TypeInfo *typeInfo) {
             if (propertiesMap.find(propertyName) == propertiesMap.end()) {
                 auto descriptor = new PropertyDescriptor();
                 descriptor->name = propertyName;
@@ -33,36 +33,40 @@ namespace zero {
                                     propertiesMap[propertyName]->typeInfo->name + "`");
         }
 
-        PropertyDescriptor *getProperty(const string& propertyName) {
+        PropertyDescriptor *getProperty(const string &propertyName) {
             if (propertiesMap.find(propertyName) != propertiesMap.end()) {
                 return propertiesMap[propertyName];
             }
             return nullptr;
         }
 
-        void addParameter(const string& ident,TypeInfo *pInfo) {
+        void addParameter(const string &ident, TypeInfo *pInfo) {
             typeParameters.push_back({ident, pInfo});
         }
 
-        vector<pair<string,TypeInfo *>> getParameters() {
+        vector<pair<string, TypeInfo *>> getParameters() {
             return typeParameters;
+        }
+
+        map<string, PropertyDescriptor *> getProperties() {
+            return propertiesMap;
         }
 
         int getPropertyCount() {
             return propertiesMap.size();
         }
 
-        void removeProperty(const string& propertyName) {
+        void removeProperty(const string &propertyName) {
             propertiesMap.erase(propertyName);
         }
 
-        unsigned int addImmediate(const string& immediateData, TypeInfo *typeInfo) {
+        unsigned int addImmediate(const string &immediateData, TypeInfo *typeInfo) {
             auto immediateName = "$" + typeInfo->name + "__" + immediateData;
             immediates.push_back({immediateName, immediateData});
             return addProperty(immediateName, typeInfo);
         }
 
-        PropertyDescriptor *getImmediate(const string& immediateData, TypeInfo *typeInfo) {
+        PropertyDescriptor *getImmediate(const string &immediateData, TypeInfo *typeInfo) {
             auto immediateName = "$" + typeInfo->name + "__" + immediateData;
             return getProperty(immediateName);
         }
@@ -76,28 +80,40 @@ namespace zero {
             this->propertiesMap = map<string, PropertyDescriptor *>(other->impl->propertiesMap);
             this->indexCounter = other->impl->indexCounter;
         }
+
+        string toString() {
+            if (typeParameters.empty())
+                return "";
+            string parametersStr = "<";
+            for (auto &param: typeParameters) {
+                parametersStr += param.second->toString() + ",";
+            }
+            parametersStr += ">";
+            return parametersStr;
+        }
     };
 
-    TypeInfo::TypeInfo(string name, int isCallable, int isNative) {
+    TypeInfo::TypeInfo(string name, int isCallable, int isNative, int isTypeParam) {
         this->name = std::move(name);
         this->isCallable = isCallable;
         this->isNative = isNative;
+        this->isTypeParam = isTypeParam;
         this->impl = new Impl();
     }
 
-    unsigned int TypeInfo::addProperty(const string& propertyName, TypeInfo *type) {
+    unsigned int TypeInfo::addProperty(const string &propertyName, TypeInfo *type) {
         return this->impl->addProperty(propertyName, type);
     }
 
-    TypeInfo::PropertyDescriptor *TypeInfo::getProperty(const string& propertyName) {
+    TypeInfo::PropertyDescriptor *TypeInfo::getProperty(const string &propertyName) {
         return this->impl->getProperty(propertyName);
     }
 
-    TypeInfo::PropertyDescriptor *TypeInfo::getImmediate(const string& immediateName, TypeInfo *type) {
+    TypeInfo::PropertyDescriptor *TypeInfo::getImmediate(const string &immediateName, TypeInfo *type) {
         return this->impl->getImmediate(immediateName, type);
     }
 
-    void TypeInfo::addParameter(const string& parameterIdent, TypeInfo *type) {
+    void TypeInfo::addParameter(const string &parameterIdent, TypeInfo *type) {
         return this->impl->addParameter(parameterIdent, type);
     }
 
@@ -117,7 +133,7 @@ namespace zero {
         return other->name == this->name;
     }
 
-    vector<pair<string,TypeInfo *>> TypeInfo::getParameters() {
+    vector<pair<string, TypeInfo *>> TypeInfo::getParameters() {
         return impl->getParameters();
     }
 
@@ -125,11 +141,11 @@ namespace zero {
         return impl->getPropertyCount();
     }
 
-    void TypeInfo::removeProperty(const string& propertyName) {
+    void TypeInfo::removeProperty(const string &propertyName) {
         return impl->removeProperty(propertyName);
     }
 
-    unsigned int TypeInfo::addImmediate(const string& propertyName, TypeInfo *typeInfo) {
+    unsigned int TypeInfo::addImmediate(const string &propertyName, TypeInfo *typeInfo) {
         return impl->addImmediate(propertyName, typeInfo);
     }
 
@@ -139,5 +155,13 @@ namespace zero {
 
     void TypeInfo::clonePropertiesFrom(TypeInfo *other) {
         impl->clonePropertiesFrom(other);
+    }
+
+    string TypeInfo::toString() {
+        return name + "" + impl->toString();
+    }
+
+    map<string, TypeInfo::PropertyDescriptor *> TypeInfo::getProperties() {
+        return impl->getProperties();
     }
 }

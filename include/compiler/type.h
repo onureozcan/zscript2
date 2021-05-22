@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #define TYPE_LITERAL_STRING "String"
 #define TYPE_LITERAL_INT "int"
@@ -26,6 +27,10 @@ namespace zero {
         };
 
         string name;
+
+        TypeInfo* typeBoundary = nullptr;
+        int isTypeParam;
+
         int isCallable;
         int isNative;
 
@@ -36,7 +41,7 @@ namespace zero {
         static TypeInfo ANY;
         static TypeInfo T_VOID;
 
-        explicit TypeInfo(string name, int isCallable, int isNative = 0);
+        explicit TypeInfo(string name, int isCallable, int isNative = 0, int isTypeParam = 0);
 
         void addParameter(const string& parameterIdent, TypeInfo *type);
 
@@ -58,7 +63,11 @@ namespace zero {
 
         vector<pair<string, string>> getImmediateProperties();
 
+        map<string,PropertyDescriptor*> getProperties();
+
         void clonePropertiesFrom(TypeInfo *other);
+
+        string toString();
 
     private:
         Impl *impl;

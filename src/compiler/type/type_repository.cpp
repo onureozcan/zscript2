@@ -8,14 +8,6 @@ namespace zero {
     private:
         map<string, TypeInfo *> typeMap;
 
-        static string getSearchKey(const string& name, int parameterCount) {
-            return name + "<" + to_string(parameterCount) + ">";
-        }
-
-        static string getSearchKey(TypeInfo *type) {
-            return type->name + "<" + to_string(type->getParameters().size()) + ">";
-        }
-
     public:
         Impl() {
             registerType(&TypeInfo::STRING);
@@ -26,15 +18,14 @@ namespace zero {
             registerType(&TypeInfo::T_VOID);
         }
 
-        TypeInfo *findTypeByName(const string& name, int paramCount = 0) {
-            auto searchKey = getSearchKey(name, paramCount);
-            if (typeMap.find(searchKey) != typeMap.end())
-                return typeMap[searchKey];
+        TypeInfo *findTypeByName(const string& name) {
+            if (typeMap.find(name) != typeMap.end())
+                return typeMap[name];
             else return nullptr;
         }
 
         void registerType(TypeInfo *type) {
-            typeMap[getSearchKey(type)] = type;
+            typeMap[type->name] = type;
         }
     };
 
@@ -46,8 +37,8 @@ namespace zero {
         impl->registerType(type);
     }
 
-    TypeInfo *TypeMetadataRepository::findTypeByName(const string& name, int parameterCount) {
-        return impl->findTypeByName(name, parameterCount);
+    TypeInfo *TypeMetadataRepository::findTypeByName(const string& name) {
+        return impl->findTypeByName(name);
     }
 
     TypeMetadataRepository *TypeMetadataRepository::getInstance() {

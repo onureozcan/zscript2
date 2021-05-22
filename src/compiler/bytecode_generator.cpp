@@ -101,8 +101,8 @@ namespace zero {
             return tempVariableAllocatorMap[currentContextType];
         }
 
-        TypeInfo *type(const string& name, int paramCount = 0) const {
-            return typeMetadataRepository->findTypeByName(name, paramCount);
+        TypeInfo *type(const string& name) const {
+            return typeMetadataRepository->findTypeByName(name);
         }
 
         static Operator *getOp(string name, int operandCount) {

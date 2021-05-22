@@ -29,6 +29,20 @@ namespace zero {
             function->returnType = TypeDescriptorAstNode::from(TypeInfo::T_VOID.name);
         }
 
+        auto typeParameterBlock = functionContext->typeParameterBlock();
+        if (typeParameterBlock != nullptr) {
+            for (auto typeParam: typeParameterBlock->typedIdent()) {
+                auto parameterName = typeParam->ident->getText();
+                TypeDescriptorAstNode *typeAst;
+                if (typeParam->typeDescriptor() != nullptr) {
+                    typeAst = TypeDescriptorAstNode::from(typeParam->typeDescriptor(), fileName);
+                } else {
+                    typeAst = TypeDescriptorAstNode::from(TypeInfo::ANY.name);
+                }
+                function->typeParameters.push_back({parameterName, typeAst});
+            }
+        }
+
         function->program = ProgramAstNode::from(functionContext->program(), fileName);
 
         return function;

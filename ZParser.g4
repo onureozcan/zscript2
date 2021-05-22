@@ -46,9 +46,13 @@ ifStatement
         ;
 
 function
-        : (FUN) LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
+        : (FUN) typeParameterBlock? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
         program
         RCURLY
+        ;
+
+typeParameterBlock
+        : (LT (typedIdent) (COMMA (typedIdent))* GT)
         ;
 
 typeDescriptor

@@ -42,8 +42,6 @@ namespace zero {
 
         int isLvalue;
 
-        //TypeDescriptorAstNode *typeDescriptorAstNode;
-
         TypeInfo* resolvedType;
 
         static const int TYPE_ATOMIC = 0;
@@ -164,6 +162,7 @@ namespace zero {
     public:
         ProgramAstNode *program;
         vector<pair<string, TypeDescriptorAstNode*>> *arguments;
+        vector<pair<string, TypeDescriptorAstNode*>> typeParameters;
         TypeDescriptorAstNode* returnType;
         // this one is important, let me explain:
         // if a function has a function definition inside, it is perfectly legal for the child function to access variables in the "upper" scope

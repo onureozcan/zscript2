@@ -29,7 +29,7 @@ namespace zero {
     }
 
     string VariableAstNode::toString() {
-        return "var " + identifier + "@" + to_string(memoryIndex) + ":" + typeDescriptorAstNode->toString() + " = " +
+        return "var " + identifier + "@" + to_string(memoryIndex) + ":" + resolvedType->toString() + " = " +
                (initialValue != nullptr ? initialValue->toString() : "null");
     }
 }

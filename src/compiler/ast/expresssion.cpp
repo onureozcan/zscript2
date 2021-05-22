@@ -108,11 +108,15 @@ namespace zero {
                     for (const auto &piece : *function->arguments) {
                         argsStr += piece.first + ":" + piece.second->toString() + ",";
                     }
-                    return "(fun(" + argsStr + "){\n" + function->program->toString() +
+                    string typeParametersStr;
+                    for (const auto &piece : function->typeParameters) {
+                        typeParametersStr += piece.first + ":" + piece.second->toString() + ",";
+                    }
+                    return "(fun <" + typeParametersStr + ">(" + argsStr + "){\n" + function->program->toString() +
                            "}: " +
-                           resolvedType->name + ")";
+                           resolvedType->toString() + ")";
                 } else {
-                    return "(" + atom->data + ":" + resolvedType->name + ")";
+                    return "(" + atom->data + ":" + resolvedType->toString() + ")";
                 }
             }
             default: {
