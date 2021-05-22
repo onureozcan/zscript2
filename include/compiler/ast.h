@@ -4,6 +4,8 @@
 
 #include "ZParser.h"
 
+#include <compiler/type.h>
+
 using namespace std;
 
 namespace zero {
@@ -19,16 +21,28 @@ namespace zero {
         }
     };
 
+    class TypeDescriptorAstNode : public BaseAstNode {
+    public:
+        string name;
+        vector<TypeDescriptorAstNode *> parameters;
+
+        static TypeDescriptorAstNode *from(ZParser::TypeDescriptorContext *typeDescriptorContext, string fileName);
+
+        static TypeDescriptorAstNode* from(string typeName);
+
+        string toString() override;
+    };
+
     class ExpressionAstNode : public BaseAstNode {
     public:
         int expressionType;
-
-        string typeName = "?";
 
         unsigned int memoryIndex; // memory index in the current context
         unsigned int memoryDepth; // how many contexts i need to go up to find this property - only relevant for direct access
 
         int isLvalue;
+
+        TypeInfo* resolvedType;
 
         static const int TYPE_ATOMIC = 0;
         static const int TYPE_UNARY = 1;
@@ -74,10 +88,13 @@ namespace zero {
     class VariableAstNode : public BaseAstNode {
     public:
         string identifier;
-        string typeName;
         int hasExplicitTypeInfo;
         unsigned int memoryIndex;
+
         ExpressionAstNode *initialValue;
+        TypeDescriptorAstNode* typeDescriptorAstNode;
+
+        TypeInfo* resolvedType;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);
 
@@ -85,14 +102,15 @@ namespace zero {
     };
 
     class IfStatementAstNode;
+
     class LoopAstNode;
 
     class StatementAstNode : public BaseAstNode {
     public:
         ExpressionAstNode *expression;
         VariableAstNode *variable;
-        IfStatementAstNode* ifStatement;
-        LoopAstNode* loop;
+        IfStatementAstNode *ifStatement;
+        LoopAstNode *loop;
         int type;
 
         static const int TYPE_EXPRESSION = 0;
@@ -119,23 +137,23 @@ namespace zero {
         string toString() override;
     };
 
-    class IfStatementAstNode: public BaseAstNode {
+    class IfStatementAstNode : public BaseAstNode {
     public:
-        ExpressionAstNode* expression;
-        ProgramAstNode* program, *elseProgram;
+        ExpressionAstNode *expression;
+        ProgramAstNode *program, *elseProgram;
 
-        static IfStatementAstNode *from(ZParser::IfStatementContext* ifContext, string fileName);
+        static IfStatementAstNode *from(ZParser::IfStatementContext *ifContext, string fileName);
 
         string toString() override;
     };
 
-    class LoopAstNode: public BaseAstNode {
+    class LoopAstNode : public BaseAstNode {
     public:
-        VariableAstNode* loopVariable;
-        ExpressionAstNode* loopIterationExpression,*loopConditionExpression;
-        ProgramAstNode* program;
+        VariableAstNode *loopVariable;
+        ExpressionAstNode *loopIterationExpression, *loopConditionExpression;
+        ProgramAstNode *program;
 
-        static LoopAstNode *from(ZParser::ForLoopContext* forLoopContext, string fileName);
+        static LoopAstNode *from(ZParser::ForLoopContext *forLoopContext, string fileName);
 
         string toString() override;
     };
@@ -143,8 +161,9 @@ namespace zero {
     class FunctionAstNode : public AtomicExpressionAstNode {
     public:
         ProgramAstNode *program;
-        vector<pair<string, string>> *arguments;
-        string returnTypeName;
+        vector<pair<string, TypeDescriptorAstNode*>> *arguments;
+        vector<pair<string, TypeDescriptorAstNode*>> typeParameters;
+        TypeDescriptorAstNode* returnType;
         // this one is important, let me explain:
         // if a function has a function definition inside, it is perfectly legal for the child function to access variables in the "upper" scope
         // in that case, we cannot simply destroy the parent function context. it is a well-known pattern of memory leak in js

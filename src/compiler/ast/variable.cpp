@@ -14,10 +14,12 @@ namespace zero {
 
         variable->identifier = variableDeclarationContext->typedIdent()->ident->getText();
         if (variableDeclarationContext->typedIdent()->type != nullptr) {
-            variable->typeName = variableDeclarationContext->typedIdent()->type->getText();
+            variable->typeDescriptorAstNode = TypeDescriptorAstNode::from(
+                    variableDeclarationContext->typedIdent()->type, fileName
+            );
             variable->hasExplicitTypeInfo = 1;
         } else {
-            variable->typeName = TypeInfo::ANY.name;
+            variable->typeDescriptorAstNode = TypeDescriptorAstNode::from(TypeInfo::ANY.name);
         }
 
         if (variableDeclarationContext->expression() != nullptr) {
@@ -27,7 +29,7 @@ namespace zero {
     }
 
     string VariableAstNode::toString() {
-        return "var " + identifier + "@" + to_string(memoryIndex) + ":" + typeName + " = " +
+        return "var " + identifier + "@" + to_string(memoryIndex) + ":" + resolvedType->toString() + " = " +
                (initialValue != nullptr ? initialValue->toString() : "null");
     }
 }

@@ -80,10 +80,6 @@ namespace zero {
         return expression;
     }
 
-    string typeInfoStr(string typeIdent) {
-        return ":" + typeIdent;
-    }
-
     string ExpressionAstNode::toString() {
         switch (expressionType) {
             case TYPE_FUNCTION_CALL: {
@@ -92,16 +88,17 @@ namespace zero {
                 for (auto &piece: *call->params) {
                     paramsStr += piece->toString() + ",";
                 }
-                return "(" + call->left->toString() + "(" + paramsStr + ")" + typeInfoStr(this->typeName) + ")";
+                return "(" + call->left->toString() + "(" + paramsStr + "):" + resolvedType->name + ")";
             }
             case TYPE_UNARY: {
                 auto prefix = ((PrefixExpressionAstNode *) this);
-                return "(" + prefix->opName + "" + prefix->right->toString() + typeInfoStr(this->typeName) + ")";
+                return "(" + prefix->opName + "" + prefix->right->toString() + ":" + resolvedType->name +
+                       ")";
             }
             case TYPE_BINARY: {
                 auto binary = ((BinaryExpressionAstNode *) this);
                 return "(" + binary->left->toString() + "" + binary->opName + "" +
-                       binary->right->toString() + typeInfoStr(this->typeName) + ")";
+                       binary->right->toString() + ":" + resolvedType->name + ")";
             }
             case TYPE_ATOMIC: {
                 auto atom = ((AtomicExpressionAstNode *) this);
@@ -109,13 +106,17 @@ namespace zero {
                     auto function = ((FunctionAstNode *) atom);
                     string argsStr;
                     for (const auto &piece : *function->arguments) {
-                        argsStr += piece.first + ":" + piece.second + ",";
+                        argsStr += piece.first + ":" + piece.second->toString() + ",";
                     }
-                    return "(fun(" + argsStr + "){\n" + function->program->toString() +
-                           "}" +
-                           typeInfoStr(this->typeName) + ")";
+                    string typeParametersStr;
+                    for (const auto &piece : function->typeParameters) {
+                        typeParametersStr += piece.first + ":" + piece.second->toString() + ",";
+                    }
+                    return "(fun <" + typeParametersStr + ">(" + argsStr + "){\n" + function->program->toString() +
+                           "}: " +
+                           resolvedType->toString() + ")";
                 } else {
-                    return "(" + atom->data + typeInfoStr(this->typeName) + ")";
+                    return "(" + atom->data + ":" + resolvedType->toString() + ")";
                 }
             }
             default: {

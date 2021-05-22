@@ -2,9 +2,12 @@
 
 namespace zero {
 
+    TypeMetadataRepository* TypeMetadataRepository::instance = nullptr;
+
     class TypeMetadataRepository::Impl {
     private:
         map<string, TypeInfo *> typeMap;
+
     public:
         Impl() {
             registerType(&TypeInfo::STRING);
@@ -15,7 +18,7 @@ namespace zero {
             registerType(&TypeInfo::T_VOID);
         }
 
-        TypeInfo *findTypeByName(string name) {
+        TypeInfo *findTypeByName(const string& name) {
             if (typeMap.find(name) != typeMap.end())
                 return typeMap[name];
             else return nullptr;
@@ -34,7 +37,12 @@ namespace zero {
         impl->registerType(type);
     }
 
-    TypeInfo *TypeMetadataRepository::findTypeByName(string name) {
+    TypeInfo *TypeMetadataRepository::findTypeByName(const string& name) {
         return impl->findTypeByName(name);
+    }
+
+    TypeMetadataRepository *TypeMetadataRepository::getInstance() {
+        if (instance == nullptr) instance = new TypeMetadataRepository();
+        return instance;
     }
 }
