@@ -376,35 +376,9 @@ namespace zero {
             auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1).second;
 
             // resolve type parameters
-            returnType = resolveGenericType(returnType, passedTypesMap);
+            returnType = returnType->resolveGenericType(&passedTypesMap);
 
             call->resolvedType = returnType;
-        }
-
-        TypeInfo *resolveGenericType(TypeInfo *genericType, map<string, TypeInfo *> passedTypeArgumentsMap) {
-            // non-generic
-            if (passedTypeArgumentsMap.empty()) return genericType;
-            if (genericType->isTypeParam) {
-                return passedTypeArgumentsMap[genericType->name];
-            } else {
-                auto clone = new TypeInfo(genericType->name, genericType->isCallable, genericType->isNative);
-                // resolve recursively
-                auto properties = genericType->getProperties();
-                auto parameters = genericType->getParameters();
-                auto immediateProperties = genericType->getImmediateProperties();
-                for (const auto &actualParam : parameters) {
-                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeArgumentsMap);
-                    clone->addParameter(actualParam.first, resolvedParam);
-                }
-                for (const auto &actualProp: properties) {
-                    auto resolvedPropType = resolveGenericType(actualProp.second->typeInfo, passedTypeArgumentsMap);
-                    clone->addProperty(actualProp.first, resolvedPropType);
-                }
-                for (const auto &immediate: immediateProperties) {
-                    clone->addImmediate(immediate.first, typeOrError(immediate.second));
-                }
-                return clone;
-            }
         }
 
         void visitExpression(ExpressionAstNode *expression) {

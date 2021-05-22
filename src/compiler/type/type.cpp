@@ -81,6 +81,31 @@ namespace zero {
             this->indexCounter = other->impl->indexCounter;
         }
 
+        static TypeInfo *
+        resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *passedTypeArgumentsMap) {
+            // non-generic
+            if (passedTypeArgumentsMap->empty()) return genericType;
+            if (genericType->isTypeParam) {
+                return passedTypeArgumentsMap->find(genericType->name)->second;
+            } else {
+                auto clone = new TypeInfo(genericType->name, genericType->isCallable, genericType->isNative);
+                // resolve recursively
+                auto properties = genericType->impl->propertiesMap;
+                auto parameters = genericType->impl->typeParameters;
+                auto immediateProperties = genericType->getImmediateProperties();
+                for (const auto &actualParam : parameters) {
+                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeArgumentsMap);
+                    clone->addParameter(actualParam.first, resolvedParam);
+                }
+                for (const auto &actualProp: properties) {
+                    auto resolvedPropType = resolveGenericType(actualProp.second->typeInfo, passedTypeArgumentsMap);
+                    clone->addProperty(actualProp.first, resolvedPropType);
+                }
+                clone->impl->immediates = genericType->impl->immediates;
+                return clone;
+            }
+        }
+
         string toString() {
             if (typeParameters.empty())
                 return "";
@@ -163,5 +188,9 @@ namespace zero {
 
     map<string, TypeInfo::PropertyDescriptor *> TypeInfo::getProperties() {
         return impl->getProperties();
+    }
+
+    TypeInfo *TypeInfo::resolveGenericType(const map<string, TypeInfo *> *passedTypeArgumentsMap) {
+        return Impl::resolveGenericType(this, passedTypeArgumentsMap);
     }
 }

@@ -93,6 +93,21 @@ namespace zero {
             }
         }
 
+        // try type parameters before throwing the error
+        if (type1->isTypeParam || type2->isTypeParam) {
+            TypeInfo *type1TypeBoundary, *type2TypeBoundary;
+            type1TypeBoundary = type1->typeBoundary == nullptr ? type1 : type1->typeBoundary;
+            type2TypeBoundary = type2->typeBoundary == nullptr ? type2 : type2->typeBoundary;
+            TypeInfo *ret = getReturnType(op, type1TypeBoundary, type2TypeBoundary);
+            if (ret == type1TypeBoundary) {
+                return type1;
+            } else if (ret == type2TypeBoundary) {
+                return type2;
+            } else {
+                return ret;
+            }
+        }
+
         throw runtime_error(
                 "operator `" + op->name + "` does not work on `" + type1->name + "` and `" + type2->name + "`");
     }
@@ -102,7 +117,21 @@ namespace zero {
             if (type1->name == TypeInfo::DECIMAL.name || type1->name == TypeInfo::INT.name) {
                 return type1;
             }
+        } else if (op == &Operator::NOT) {
+            if (type1->name == TypeInfo::BOOLEAN.name) {
+                return type1;
+            }
         }
+
+        // try type boundaries before throwing error
+        if (type1->isTypeParam) {
+            TypeInfo *ret = getReturnType(op, type1->typeBoundary);
+            if (ret == type1->typeBoundary) {
+                return type1;
+            }
+            return ret;
+        }
+
         throw runtime_error("operator `" + op->name + "` does not work on `" + type1->name + "`");
     }
 }

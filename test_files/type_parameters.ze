@@ -19,10 +19,18 @@ var second_order_generic_fnc = fun<T> (arg:T) : fun<String,T> {
     }
 }
 
-var generated_fnc_decimal = second_order_generic_fnc(3.14)
-var generated_fnc_string = second_order_generic_fnc("osman")
-var generated_fnc_int = second_order_generic_fnc(-5)
+var generated_fnc_decimal: fun<String,decimal> = second_order_generic_fnc(3.14)
+var generated_fnc_string: fun<String,String> = second_order_generic_fnc("osman")
+var generated_fnc_int: fun<String,int> = second_order_generic_fnc(-5)
 
 print(generated_fnc_decimal("test - decimal"))
 print(generated_fnc_string("test - string"))
 print(generated_fnc_int("test - int"))
+
+var bounded_type_parametric_fnc = fun <T:int> (num:T):T {
+    print("* operation only defined on numbers.
+    T is bounded to int (i know it is silly but just to test) so * should be legal on T as well")
+    var ret:T = num * 2
+    return ret
+}
+print(bounded_type_parametric_fnc(3))

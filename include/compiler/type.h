@@ -43,6 +43,8 @@ namespace zero {
 
         explicit TypeInfo(string name, int isCallable, int isNative = 0, int isTypeParam = 0);
 
+        TypeInfo *resolveGenericType(const map<string, TypeInfo *> *passedTypeArgumentsMap);
+
         void addParameter(const string& parameterIdent, TypeInfo *type);
 
         vector<pair<string, TypeInfo *>> getParameters();
