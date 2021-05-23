@@ -74,12 +74,13 @@ variableDeclaration
 expression
         :primaryExpresssion
        | expression bop=DOT expression
-       | expression typeParametersBlock? methodCall=LPAREN (expression (COMMA expression)*)? RPAREN
+       | expression methodCall=LPAREN (expression (COMMA expression)*)? RPAREN
        | prefix=MINUS expression
-       | prefix=(TILDE|EX) expression
-       | expression bop=(STAR|DIV|MOD) expression
-       | expression bop=(PLUS|MINUS) expression
-       | expression bop=(LTE | GTE | GT | LT) expression
+       | prefix=(TILDE | EX) expression
+       | expression bop=(STAR | DIV | MOD) expression
+       | expression bop=(PLUS | MINUS) expression
+       | expression bop=(LTE | GTE | GT) expression
+       | expression (typeParametersBlock | bop=LT expression)
        | expression bop=(CMP_EQ | CMP_NE) expression
        | expression bop=EQ expression
        | expression bop=AND expression

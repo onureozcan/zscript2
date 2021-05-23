@@ -14,6 +14,7 @@ namespace zero {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
         vector<pair<string, TypeInfo *>> typeArguments;
+        vector<TypeInfo*> functionArguments;
         vector<pair<string, string>> immediates;
         int indexCounter = 0;
     public:
@@ -105,6 +106,10 @@ namespace zero {
             }
         }
 
+        void addFunctionArgument(TypeInfo *argumentType) {
+            functionArguments.push_back(argumentType);
+        }
+
         string toString() {
             if (typeArguments.empty())
                 return "";
@@ -114,6 +119,10 @@ namespace zero {
             }
             parametersStr += ">";
             return parametersStr;
+        }
+
+        vector<TypeInfo *> getFunctionArguments() {
+            return functionArguments;
         }
     };
 
@@ -191,5 +200,13 @@ namespace zero {
 
     TypeInfo *TypeInfo::resolveGenericType(const map<string, TypeInfo *> *passedTypeParametersMap) {
         return Impl::resolveGenericType(this, passedTypeParametersMap);
+    }
+
+    void TypeInfo::addFunctionArgument(TypeInfo *argumentType) {
+        return impl->addFunctionArgument(argumentType);
+    }
+
+    vector<TypeInfo *> TypeInfo::getFunctionArguments() {
+        return impl->getFunctionArguments();
     }
 }

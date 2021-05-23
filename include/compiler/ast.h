@@ -71,6 +71,8 @@ namespace zero {
         ExpressionAstNode *left;
         vector<ExpressionAstNode *> *params;
         vector<TypeDescriptorAstNode*> typeParams;
+
+        vector<TypeInfo*> resolvedTypeParams;
     };
 
     class AtomicExpressionAstNode : public ExpressionAstNode {

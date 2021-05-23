@@ -64,8 +64,18 @@ namespace zero {
             expression = unary;
         } else {
             auto functionCall = new FunctionCallExpressionAstNode();
+            auto typeParameters = expressionContext->expression(0)->typeParametersBlock();
+            auto hasExplicitTypeParameters = typeParameters != nullptr;
+            auto leftExpressionContext = expressionContext->expression(0);
+            if (hasExplicitTypeParameters) {
+                for (const auto &param: typeParameters->typeDescriptor()) {
+                    auto typeAst = TypeDescriptorAstNode::from(param, fileName);
+                    functionCall->typeParams.push_back(typeAst);
+                }
+                leftExpressionContext = leftExpressionContext->expression(0);
+            }
             functionCall->expressionType = TYPE_FUNCTION_CALL;
-            functionCall->left = from(expressionContext->expression(0), fileName);
+            functionCall->left = from(leftExpressionContext, fileName);
             functionCall->params = new vector<ExpressionAstNode *>();
             for (unsigned int i = 1; i < expressionContext->expression().size(); i++) {
                 functionCall->params->push_back(from(expressionContext->expression(i), fileName));
@@ -88,7 +98,12 @@ namespace zero {
                 for (auto &piece: *call->params) {
                     paramsStr += piece->toString() + ",";
                 }
-                return "(" + call->left->toString() + "(" + paramsStr + "):" + resolvedType->name + ")";
+                string typeParamsStr;
+                for (auto &typeParam: call->resolvedTypeParams) {
+                    typeParamsStr += typeParam->toString() + ",";
+                }
+                return "(" + call->left->toString() + "<" + typeParamsStr + ">(" + paramsStr + "):" +
+                       resolvedType->name + ")";
             }
             case TYPE_UNARY: {
                 auto prefix = ((PrefixExpressionAstNode *) this);

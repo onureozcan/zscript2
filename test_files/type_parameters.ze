@@ -9,6 +9,12 @@ var string_test: String = generic_fnc("test")
 print(int_test)
 print(string_test)
 
+var int_test_explicit_args: int = generic_fnc<int>(3)
+var string_test_explicit_args: String = generic_fnc<String>("test")
+
+print(int_test_explicit_args)
+print(string_test_explicit_args)
+
 var second_order_generic_fnc = fun<T> (arg:T) : fun<String,T> {
 
     return fun(str: String): T {
@@ -34,3 +40,19 @@ var bounded_type_parametric_fnc = fun <T:int> (num:T):T {
     return ret
 }
 print(bounded_type_parametric_fnc(3))
+
+print("type parameters are allowed to be parametric as well")
+
+var parametric_type_parameter_test_explicit_test = generic_fnc<fun<int,int>>(
+    fun (i:int):int {
+        return i + 10
+    }
+)
+print(parametric_type_parameter_test_explicit_test(5))
+
+var parametric_type_parameter_test_implicit_test = generic_fnc(
+    fun (i:int):int {
+        return i + 10
+    }
+)
+print(parametric_type_parameter_test_implicit_test(5))

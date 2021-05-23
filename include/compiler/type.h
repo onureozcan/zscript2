@@ -49,6 +49,8 @@ namespace zero {
 
         vector<pair<string, TypeInfo *>> getTypeArguments();
 
+        vector<TypeInfo*> getFunctionArguments();
+
         unsigned int addProperty(const string& propertyName, TypeInfo *type);
 
         int isAssignableFrom(TypeInfo *other);
@@ -68,6 +70,8 @@ namespace zero {
         map<string,PropertyDescriptor*> getProperties();
 
         void clonePropertiesFrom(TypeInfo *other);
+
+        void addFunctionArgument(TypeInfo *argumentType);
 
         string toString();
 

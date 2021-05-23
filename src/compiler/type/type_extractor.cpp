@@ -108,7 +108,7 @@ namespace zero {
             for (int i = 0; i < paramCount; i++) {
                 auto paramAsAst = typeAst->parameters.at(i);
                 auto paramAsType = typeOrError(paramAsAst);
-                functionType->addTypeArgument("$T" + to_string(i), paramAsType);
+                functionType->addFunctionArgument(paramAsType);
             }
             return functionType;
         }
@@ -336,8 +336,15 @@ namespace zero {
         }
 
         void visitFunctionCall(FunctionCallExpressionAstNode *call) {
+
             // this holds the parametric type name - passed type map (to discover actual return type)
             map<string, TypeInfo *> passedTypesMap;
+
+            // resolve type parameters
+            for (const auto &paramAsAst: call->typeParams) {
+                auto paramAsType = typeOrError(paramAsAst);
+                call->resolvedTypeParams.push_back(paramAsType);
+            }
 
             visitExpression(call->left);
             for (auto parameter:*call->params) {
@@ -350,19 +357,59 @@ namespace zero {
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
-            auto expectedParameterTypes = calleeType->getTypeArguments();
-            auto expectedParameterCount = expectedParameterTypes.size() - 1;
+
+            // check type parameters
+            auto expectedTypeParameterTypes = calleeType->getTypeArguments();
+            auto expectedTypeParameterCount = expectedTypeParameterTypes.size();
+            auto explicitlyGivenParameterCount = call->resolvedTypeParams.size();
+
+            if (explicitlyGivenParameterCount != 0) {
+                // parameter types are explicitly passed. counts must match!
+                if (explicitlyGivenParameterCount != expectedTypeParameterCount) {
+                    errorExit("expected " + to_string(expectedTypeParameterCount) + " parameter types. passed "
+                              + to_string(explicitlyGivenParameterCount) + " " + currentNodeInfoStr());
+                }
+            }
+
+            for (unsigned int i = 0; i < explicitlyGivenParameterCount; i++) {
+                auto expectedTypeParam = expectedTypeParameterTypes.at(i);
+                auto givenTypeParam = call->resolvedTypeParams.at(i);
+                if (expectedTypeParam.second->typeBoundary->isAssignableFrom(givenTypeParam)) {
+                    passedTypesMap[expectedTypeParam.first] = givenTypeParam;
+                } else {
+                    errorExit("type argument `" + expectedTypeParam.first
+                              + "` is not assignable from " + givenTypeParam->toString() + " " + currentNodeInfoStr());
+                }
+            }
+
+            // check function parameters
+            auto expectedFunctionParameterTypes = calleeType->getFunctionArguments();
+            auto expectedParameterCount = expectedFunctionParameterTypes.size() - 1;
             if (expectedParameterCount != call->params->size()) {
                 errorExit("expected " + to_string(expectedParameterCount) + " args, given " +
                           to_string(call->params->size()) + "" + currentNodeInfoStr());
             }
             for (unsigned int i = 0; i < call->params->size(); i++) {
-                auto expectedType = expectedParameterTypes[i].second;
+                auto expectedType = expectedFunctionParameterTypes[i];
                 auto givenType = call->params->at(i)->resolvedType;
 
                 if (expectedType->isTypeArgument) {
-                    passedTypesMap[expectedType->name] = givenType;
-                    expectedType = expectedType->typeBoundary;
+                    // if a parameterized type is passed, it can be inferred automatically
+                    // of course, if it is not passed explicitly
+                    TypeInfo *passedTypeParam;
+                    if (passedTypesMap.find(expectedType->name) != passedTypesMap.end()) {
+                        passedTypeParam = passedTypesMap[expectedType->name];
+                    } else {
+                        passedTypeParam = givenType;
+                    }
+                    if (expectedType->typeBoundary->isAssignableFrom(passedTypeParam)) {
+                        passedTypesMap[expectedType->name] = passedTypeParam;
+                        expectedType = expectedType->typeBoundary;
+                    } else {
+                        errorExit("type argument `" + expectedType->name
+                                  + "` is not assignable from " + passedTypeParam->toString() + " " +
+                                  currentNodeInfoStr());
+                    }
                 }
 
                 if (!expectedType->isAssignableFrom(givenType)) {
@@ -370,9 +417,14 @@ namespace zero {
                               expectedType->name + "` " + currentNodeInfoStr());
                 }
             }
+            // make sure that all the type parameters are linked
+            if (passedTypesMap.size() != expectedTypeParameterCount) {
+                errorExit("expected " + to_string(expectedTypeParameterCount) + " parameter types. passed "
+                          + to_string(passedTypesMap.size()) + " " + currentNodeInfoStr());
+            }
 
             // the last parameter is the return type
-            auto returnType = expectedParameterTypes.at(expectedParameterTypes.size() - 1).second;
+            auto returnType = expectedFunctionParameterTypes.at(expectedFunctionParameterTypes.size() - 1);
 
             // resolve type parameters
             returnType = returnType->resolveGenericType(&passedTypesMap);
@@ -446,7 +498,7 @@ namespace zero {
             }
 
             auto functionType = currentFunction->resolvedType;
-            auto expectedReturnType = functionType->getTypeArguments().back().second;
+            auto expectedReturnType = functionType->getFunctionArguments().back();
 
             if (!expectedReturnType->isAssignableFrom(returnType)) {
                 errorExit("cannot return `" + returnType->name + "` from a function that returns `" +
@@ -521,6 +573,9 @@ namespace zero {
             }
 
             TypeInfo *functionType = getFunctionType(argTypes, function->returnType);
+            for (const auto &typeArg: currentContext()->getTypeArguments()) {
+                functionType->addTypeArgument(typeArg.first, typeArg.second);
+            }
             function->resolvedType = functionType;
 
             // visit children
