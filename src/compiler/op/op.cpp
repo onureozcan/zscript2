@@ -94,7 +94,7 @@ namespace zero {
         }
 
         // try type parameters before throwing the error
-        if (type1->isTypeParam || type2->isTypeParam) {
+        if (type1->isTypeArgument || type2->isTypeArgument) {
             TypeInfo *type1TypeBoundary, *type2TypeBoundary;
             type1TypeBoundary = type1->typeBoundary == nullptr ? type1 : type1->typeBoundary;
             type2TypeBoundary = type2->typeBoundary == nullptr ? type2 : type2->typeBoundary;
@@ -124,7 +124,7 @@ namespace zero {
         }
 
         // try type boundaries before throwing error
-        if (type1->isTypeParam) {
+        if (type1->isTypeArgument) {
             TypeInfo *ret = getReturnType(op, type1->typeBoundary);
             if (ret == type1->typeBoundary) {
                 return type1;

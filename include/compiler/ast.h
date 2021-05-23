@@ -70,6 +70,7 @@ namespace zero {
     public:
         ExpressionAstNode *left;
         vector<ExpressionAstNode *> *params;
+        vector<TypeDescriptorAstNode*> typeParams;
     };
 
     class AtomicExpressionAstNode : public ExpressionAstNode {
@@ -162,7 +163,7 @@ namespace zero {
     public:
         ProgramAstNode *program;
         vector<pair<string, TypeDescriptorAstNode*>> *arguments;
-        vector<pair<string, TypeDescriptorAstNode*>> typeParameters;
+        vector<pair<string, TypeDescriptorAstNode*>> typeArguments;
         TypeDescriptorAstNode* returnType;
         // this one is important, let me explain:
         // if a function has a function definition inside, it is perfectly legal for the child function to access variables in the "upper" scope

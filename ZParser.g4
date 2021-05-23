@@ -46,13 +46,17 @@ ifStatement
         ;
 
 function
-        : (FUN) typeParameterBlock? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
+        : (FUN) typeArgumentsBlock? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
         program
         RCURLY
         ;
 
-typeParameterBlock
+typeArgumentsBlock
         : (LT (typedIdent) (COMMA (typedIdent))* GT)
+        ;
+
+typeParametersBlock
+        : (LT (typeDescriptor) (COMMA (typeDescriptor))* GT)
         ;
 
 typeDescriptor
@@ -70,7 +74,7 @@ variableDeclaration
 expression
         :primaryExpresssion
        | expression bop=DOT expression
-       | expression methodCall=LPAREN (expression (COMMA expression)*)? RPAREN
+       | expression typeParametersBlock? methodCall=LPAREN (expression (COMMA expression)*)? RPAREN
        | prefix=MINUS expression
        | prefix=(TILDE|EX) expression
        | expression bop=(STAR|DIV|MOD) expression

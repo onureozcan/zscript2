@@ -109,7 +109,7 @@ namespace zero {
                         argsStr += piece.first + ":" + piece.second->toString() + ",";
                     }
                     string typeParametersStr;
-                    for (const auto &piece : function->typeParameters) {
+                    for (const auto &piece : function->typeArguments) {
                         typeParametersStr += piece.first + ":" + piece.second->toString() + ",";
                     }
                     return "(fun <" + typeParametersStr + ">(" + argsStr + "){\n" + function->program->toString() +

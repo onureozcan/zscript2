@@ -13,7 +13,7 @@ namespace zero {
     class TypeInfo::Impl {
     private:
         map<string, PropertyDescriptor *> propertiesMap;
-        vector<pair<string, TypeInfo *>> typeParameters;
+        vector<pair<string, TypeInfo *>> typeArguments;
         vector<pair<string, string>> immediates;
         int indexCounter = 0;
     public:
@@ -40,12 +40,12 @@ namespace zero {
             return nullptr;
         }
 
-        void addParameter(const string &ident, TypeInfo *pInfo) {
-            typeParameters.push_back({ident, pInfo});
+        void addTypeArgument(const string &ident, TypeInfo *pInfo) {
+            typeArguments.push_back({ident, pInfo});
         }
 
-        vector<pair<string, TypeInfo *>> getParameters() {
-            return typeParameters;
+        vector<pair<string, TypeInfo *>> getTypeArguments() {
+            return typeArguments;
         }
 
         map<string, PropertyDescriptor *> getProperties() {
@@ -81,24 +81,23 @@ namespace zero {
             this->indexCounter = other->impl->indexCounter;
         }
 
-        static TypeInfo *
-        resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *passedTypeArgumentsMap) {
+        static TypeInfo *resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *typeParameters) {
             // non-generic
-            if (passedTypeArgumentsMap->empty()) return genericType;
-            if (genericType->isTypeParam) {
-                return passedTypeArgumentsMap->find(genericType->name)->second;
+            if (typeParameters->empty()) return genericType;
+            if (genericType->isTypeArgument) {
+                return typeParameters->find(genericType->name)->second;
             } else {
                 auto clone = new TypeInfo(genericType->name, genericType->isCallable, genericType->isNative);
                 // resolve recursively
                 auto properties = genericType->impl->propertiesMap;
-                auto parameters = genericType->impl->typeParameters;
+                auto parameters = genericType->impl->typeArguments;
                 auto immediateProperties = genericType->getImmediateProperties();
                 for (const auto &actualParam : parameters) {
-                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeArgumentsMap);
-                    clone->addParameter(actualParam.first, resolvedParam);
+                    auto resolvedParam = resolveGenericType(actualParam.second, typeParameters);
+                    clone->addTypeArgument(actualParam.first, resolvedParam);
                 }
                 for (const auto &actualProp: properties) {
-                    auto resolvedPropType = resolveGenericType(actualProp.second->typeInfo, passedTypeArgumentsMap);
+                    auto resolvedPropType = resolveGenericType(actualProp.second->typeInfo, typeParameters);
                     clone->addProperty(actualProp.first, resolvedPropType);
                 }
                 clone->impl->immediates = genericType->impl->immediates;
@@ -107,10 +106,10 @@ namespace zero {
         }
 
         string toString() {
-            if (typeParameters.empty())
+            if (typeArguments.empty())
                 return "";
             string parametersStr = "<";
-            for (auto &param: typeParameters) {
+            for (auto &param: typeArguments) {
                 parametersStr += param.second->toString() + ",";
             }
             parametersStr += ">";
@@ -118,11 +117,11 @@ namespace zero {
         }
     };
 
-    TypeInfo::TypeInfo(string name, int isCallable, int isNative, int isTypeParam) {
+    TypeInfo::TypeInfo(string name, int isCallable, int isNative, int isTypeArgument) {
         this->name = std::move(name);
         this->isCallable = isCallable;
         this->isNative = isNative;
-        this->isTypeParam = isTypeParam;
+        this->isTypeArgument = isTypeArgument;
         this->impl = new Impl();
     }
 
@@ -138,8 +137,8 @@ namespace zero {
         return this->impl->getImmediate(immediateName, type);
     }
 
-    void TypeInfo::addParameter(const string &parameterIdent, TypeInfo *type) {
-        return this->impl->addParameter(parameterIdent, type);
+    void TypeInfo::addTypeArgument(const string &typeArgName, TypeInfo *type) {
+        return this->impl->addTypeArgument(typeArgName, type);
     }
 
     int TypeInfo::isAssignableFrom(TypeInfo *other) {
@@ -158,8 +157,8 @@ namespace zero {
         return other->name == this->name;
     }
 
-    vector<pair<string, TypeInfo *>> TypeInfo::getParameters() {
-        return impl->getParameters();
+    vector<pair<string, TypeInfo *>> TypeInfo::getTypeArguments() {
+        return impl->getTypeArguments();
     }
 
     int TypeInfo::getPropertyCount() {
@@ -190,7 +189,7 @@ namespace zero {
         return impl->getProperties();
     }
 
-    TypeInfo *TypeInfo::resolveGenericType(const map<string, TypeInfo *> *passedTypeArgumentsMap) {
-        return Impl::resolveGenericType(this, passedTypeArgumentsMap);
+    TypeInfo *TypeInfo::resolveGenericType(const map<string, TypeInfo *> *passedTypeParametersMap) {
+        return Impl::resolveGenericType(this, passedTypeParametersMap);
     }
 }

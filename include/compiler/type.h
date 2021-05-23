@@ -29,7 +29,7 @@ namespace zero {
         string name;
 
         TypeInfo* typeBoundary = nullptr;
-        int isTypeParam;
+        int isTypeArgument;
 
         int isCallable;
         int isNative;
@@ -41,13 +41,13 @@ namespace zero {
         static TypeInfo ANY;
         static TypeInfo T_VOID;
 
-        explicit TypeInfo(string name, int isCallable, int isNative = 0, int isTypeParam = 0);
+        explicit TypeInfo(string name, int isCallable, int isNative = 0, int isTypeArgument = 0);
 
-        TypeInfo *resolveGenericType(const map<string, TypeInfo *> *passedTypeArgumentsMap);
+        TypeInfo *resolveGenericType(const map<string, TypeInfo *> *passedTypeParametersMap);
 
-        void addParameter(const string& parameterIdent, TypeInfo *type);
+        void addTypeArgument(const string& typeArgName, TypeInfo *type);
 
-        vector<pair<string, TypeInfo *>> getParameters();
+        vector<pair<string, TypeInfo *>> getTypeArguments();
 
         unsigned int addProperty(const string& propertyName, TypeInfo *type);
 

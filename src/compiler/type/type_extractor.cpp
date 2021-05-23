@@ -43,16 +43,15 @@ namespace zero {
             return contextStack.back();
         }
 
-        void addTypeParameters(const vector<pair<string, TypeDescriptorAstNode *>> &typeAstMap) {
+        void addTypeArguments(const vector<pair<string, TypeDescriptorAstNode *>> &typeAstMap) {
             TypeInfo *context = currentContext();
             for (auto &piece: typeAstMap) {
                 auto name = piece.first;
                 auto typeAst = piece.second;
                 auto typeBoundary = typeOrError(typeAst);
-                auto typeParam = new TypeInfo(name, typeBoundary->isCallable, typeBoundary->isNative);
-                typeParam->isTypeParam = true;
-                typeParam->typeBoundary = typeBoundary;
-                context->addParameter(name, typeParam);
+                auto typeArgument = new TypeInfo(name, typeBoundary->isCallable, typeBoundary->isNative, true);
+                typeArgument->typeBoundary = typeBoundary;
+                context->addTypeArgument(name, typeArgument);
             }
         }
 
@@ -63,10 +62,10 @@ namespace zero {
                 if (depth < contextStack.size())
                     current = contextStack[contextStack.size() - depth - 1];
                 else break;
-                auto parameters = current->getParameters();
-                for (const auto &param: parameters) {
-                    if (param.first == name) {
-                        return param.second;
+                auto typeArguments = current->getTypeArguments();
+                for (const auto &argument: typeArguments) {
+                    if (argument.first == name) {
+                        return argument.second;
                     }
                 }
                 depth++;
@@ -109,7 +108,7 @@ namespace zero {
             for (int i = 0; i < paramCount; i++) {
                 auto paramAsAst = typeAst->parameters.at(i);
                 auto paramAsType = typeOrError(paramAsAst);
-                functionType->addParameter("$T" + to_string(i), paramAsType);
+                functionType->addTypeArgument("$T" + to_string(i), paramAsType);
             }
             return functionType;
         }
@@ -133,7 +132,7 @@ namespace zero {
             for (int i = 0; i < paramCount; i++) {
                 auto paramAsAst = typeAst->parameters.at(i);
                 auto paramAsType = typeOrError(paramAsAst);
-                auto typeBoundaryPair = foundType->getParameters().at(i);
+                auto typeBoundaryPair = foundType->getTypeArguments().at(i);
                 auto typeBoundary = typeBoundaryPair.second;
                 auto typeBoundaryIdent = typeBoundaryPair.first;
                 if (typeBoundary->name != paramAsType->name) {
@@ -145,7 +144,7 @@ namespace zero {
                                   currentNodeInfoStr());
                     }
                 }
-                clone->addParameter(typeBoundaryIdent, paramAsType);
+                clone->addTypeArgument(typeBoundaryIdent, paramAsType);
             }
 
             return clone;
@@ -351,7 +350,7 @@ namespace zero {
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
-            auto expectedParameterTypes = calleeType->getParameters();
+            auto expectedParameterTypes = calleeType->getTypeArguments();
             auto expectedParameterCount = expectedParameterTypes.size() - 1;
             if (expectedParameterCount != call->params->size()) {
                 errorExit("expected " + to_string(expectedParameterCount) + " args, given " +
@@ -361,7 +360,7 @@ namespace zero {
                 auto expectedType = expectedParameterTypes[i].second;
                 auto givenType = call->params->at(i)->resolvedType;
 
-                if (expectedType->isTypeParam) {
+                if (expectedType->isTypeArgument) {
                     passedTypesMap[expectedType->name] = givenType;
                     expectedType = expectedType->typeBoundary;
                 }
@@ -447,7 +446,7 @@ namespace zero {
             }
 
             auto functionType = currentFunction->resolvedType;
-            auto expectedReturnType = functionType->getParameters().back().second;
+            auto expectedReturnType = functionType->getTypeArguments().back().second;
 
             if (!expectedReturnType->isAssignableFrom(returnType)) {
                 errorExit("cannot return `" + returnType->name + "` from a function that returns `" +
@@ -507,7 +506,7 @@ namespace zero {
             functionsStack.push_back(function);
             currentAstNode = function;
             addContext(function->program);
-            addTypeParameters(function->typeParameters);
+            addTypeArguments(function->typeArguments);
             // register arguments to current context
             for (const auto &piece : *function->arguments) {
                 currentContext()->addProperty(piece.first, typeOrError(piece.second));

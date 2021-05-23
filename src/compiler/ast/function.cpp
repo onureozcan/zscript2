@@ -29,17 +29,17 @@ namespace zero {
             function->returnType = TypeDescriptorAstNode::from(TypeInfo::T_VOID.name);
         }
 
-        auto typeParameterBlock = functionContext->typeParameterBlock();
-        if (typeParameterBlock != nullptr) {
-            for (auto typeParam: typeParameterBlock->typedIdent()) {
-                auto parameterName = typeParam->ident->getText();
+        auto typeArgumentsBlock = functionContext->typeArgumentsBlock();
+        if (typeArgumentsBlock != nullptr) {
+            for (auto typeArg: typeArgumentsBlock->typedIdent()) {
+                auto argName = typeArg->ident->getText();
                 TypeDescriptorAstNode *typeAst;
-                if (typeParam->typeDescriptor() != nullptr) {
-                    typeAst = TypeDescriptorAstNode::from(typeParam->typeDescriptor(), fileName);
+                if (typeArg->typeDescriptor() != nullptr) {
+                    typeAst = TypeDescriptorAstNode::from(typeArg->typeDescriptor(), fileName);
                 } else {
                     typeAst = TypeDescriptorAstNode::from(TypeInfo::ANY.name);
                 }
-                function->typeParameters.push_back({parameterName, typeAst});
+                function->typeArguments.push_back({argName, typeAst});
             }
         }
 
