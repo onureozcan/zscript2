@@ -1,5 +1,5 @@
 hello world!
-test string, i should appear at the screen!
+test string, i should appear in the screen!
 lets see some numbers
 5.560000
 5

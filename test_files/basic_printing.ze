@@ -1,6 +1,6 @@
 print("hello world!")
 
-var test = "test string, i should appear at the screen!"
+var test = "test string, i should appear in the screen!"
 
 print(test)
 
