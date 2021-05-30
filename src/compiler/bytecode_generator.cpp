@@ -49,7 +49,7 @@ namespace zero {
     class ByteCodeGenerator::Impl {
 
     public:
-        TypeMetadataRepository *typeMetadataRepository = nullptr;
+        TypeInfoRepository *typeInfoRepository = nullptr;
 
         Program *generate(ProgramAstNode *programAstNode) {
             return doGenerateCode(programAstNode);
@@ -102,7 +102,7 @@ namespace zero {
         }
 
         TypeInfo *type(const string &name) const {
-            return typeMetadataRepository->findTypeByName(name);
+            return typeInfoRepository->findTypeByName(name);
         }
 
         static Operator *getOp(string name, int operandCount) {
@@ -871,6 +871,6 @@ namespace zero {
 
     ByteCodeGenerator::ByteCodeGenerator() {
         this->impl = new ByteCodeGenerator::Impl();
-        this->impl->typeMetadataRepository = TypeMetadataRepository::getInstance();
+        this->impl->typeInfoRepository = TypeInfoRepository::getInstance();
     }
 }

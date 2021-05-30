@@ -21,7 +21,7 @@ namespace zero {
     }
 
     TypeInfo *TypeHelper::typeOrError(const string &name, map<string, TypeInfo *> *typeArguments) {
-        auto typeInfo = typeMetadataRepository->findTypeByName(name);
+        auto typeInfo = typeInfoRepository->findTypeByName(name);
         if (typeInfo == nullptr) {
             if (typeArguments != nullptr && typeArguments->find(name) != typeArguments->end()) {
                 typeInfo = typeArguments->find(name)->second;

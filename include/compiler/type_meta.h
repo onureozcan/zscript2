@@ -8,21 +8,21 @@
 using namespace std;
 
 namespace zero {
-    class TypeMetadataRepository {
+    class TypeInfoRepository {
         class Impl;
 
     public:
 
-        static TypeMetadataRepository *getInstance();
+        static TypeInfoRepository *getInstance();
 
         void registerType(TypeInfo *type);
 
         TypeInfo *findTypeByName(const string &name);
 
     private:
-        TypeMetadataRepository();
+        TypeInfoRepository();
 
-        static TypeMetadataRepository *instance;
+        static TypeInfoRepository *instance;
 
         Impl *impl;
     };
@@ -47,7 +47,7 @@ namespace zero {
     class ContextChain {
     private:
         vector<TypeInfo *> contextStack;
-        TypeMetadataRepository *typeMetadataRepository = TypeMetadataRepository::getInstance();
+        TypeInfoRepository *typeInfoRepository = TypeInfoRepository::getInstance();
 
     public:
         TypeInfo *current();
@@ -61,9 +61,9 @@ namespace zero {
         TypeInfo *at(int depth);
     };
 
-    class TypeHelper {
+    class   TypeHelper {
     private:
-        TypeMetadataRepository *typeMetadataRepository = TypeMetadataRepository::getInstance();
+        TypeInfoRepository *typeInfoRepository = TypeInfoRepository::getInstance();
         ContextChain *contextChain;
 
     public:

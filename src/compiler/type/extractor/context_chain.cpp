@@ -12,7 +12,7 @@ namespace zero {
                                        ast->fileName + "(" + to_string(ast->line) + "&" +
                                        to_string(ast->pos) + ")", 0);
 
-        typeMetadataRepository->registerType(newContext);
+        typeInfoRepository->registerType(newContext);
         ast->contextObjectTypeName = newContext->name;
         if (current() != nullptr)
             newContext->addProperty("$parent", current());
