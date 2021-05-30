@@ -14,16 +14,27 @@
 using namespace std;
 
 namespace zero {
+
     class TypeInfo {
         class Impl;
 
     public:
 
         class PropertyDescriptor {
+        private:
+            vector<pair<TypeInfo *, int>> typeInfoIndexMap;
         public:
             string name;
-            TypeInfo *typeInfo;
-            int index;
+
+            class OverloadInfo {
+            public:
+                TypeInfo* type;
+                int index;
+            };
+
+            int indexOfOverloadOrMinusOne(TypeInfo* type);
+            OverloadInfo firstOverload();
+            int addOverload(TypeInfo* type, int index);
         };
 
         string name;
@@ -51,7 +62,7 @@ namespace zero {
 
         vector<TypeInfo*> getFunctionArguments();
 
-        unsigned int addProperty(const string& propertyName, TypeInfo *type);
+        unsigned int addProperty(const string& propertyName, TypeInfo *type, int overloadable = false);
 
         int isAssignableFrom(TypeInfo *other);
 
@@ -77,5 +88,7 @@ namespace zero {
 
     private:
         Impl *impl;
+
+        bool equals(TypeInfo *other);
     };
 }

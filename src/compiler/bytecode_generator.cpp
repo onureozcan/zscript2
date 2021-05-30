@@ -76,7 +76,7 @@ namespace zero {
 
         map<string, TempVariableAllocator *> tempVariableAllocatorMap;
 
-        void errorExit(const string& error) {
+        void errorExit(const string &error) {
             log.error(error.c_str());
             exit(1);
         }
@@ -101,7 +101,7 @@ namespace zero {
             return tempVariableAllocatorMap[currentContextType];
         }
 
-        TypeInfo *type(const string& name) const {
+        TypeInfo *type(const string &name) const {
             return typeMetadataRepository->findTypeByName(name);
         }
 
@@ -149,7 +149,7 @@ namespace zero {
             return sub;
         }
 
-        void generateMovImmediate(const string& immediateData, const string& typeName, unsigned int preferredIndex) {
+        void generateMovImmediate(const string &immediateData, const string &typeName, unsigned int preferredIndex) {
             if (typeName == TypeInfo::INT.name) {
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(MOV_INT)
@@ -188,8 +188,8 @@ namespace zero {
                 auto immediateName = immediatePropertyInfo.first;
                 auto immediateData = immediatePropertyInfo.second;
                 auto immediatePropertyDescriptor = typeInfo->getProperty(immediateName);
-                auto immediateType = immediatePropertyDescriptor->typeInfo;
-                auto preferredIndex = immediatePropertyDescriptor->index;
+                auto immediateType = immediatePropertyDescriptor->firstOverload().type;
+                auto preferredIndex = immediatePropertyDescriptor->firstOverload().index;
 
                 generateMovImmediate(immediateData, immediateType->name, preferredIndex);
             }
@@ -218,10 +218,9 @@ namespace zero {
             generateImmediates(contextObjectType);
 
             // --- function body
-
             for (int i = 0; i < function->arguments->size(); i++) {
                 auto argPair = function->arguments->at(i);
-                auto argIndex = contextObjectType->getProperty(argPair.first)->index;
+                auto argIndex = contextObjectType->getProperty(argPair.first)->firstOverload().index;
                 currentProgram()->addInstruction(
                         (new Instruction())
                                 ->withOpCode(ARG_READ)
@@ -232,9 +231,7 @@ namespace zero {
                 );
             }
 
-            for (auto &stmt:*function->program->statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(function->program);
 
             // ----- exit
 
@@ -620,7 +617,7 @@ namespace zero {
                                         "took " + op->name + " of value at index " + to_string(actualValueIndex) +
                                         "and put it into " + to_string(preferredIndex) + " in the current frame")
                 );
-            } else if (op == &Operator::NOT){
+            } else if (op == &Operator::NOT) {
                 // TODO
             }
             return preferredIndex;
@@ -734,10 +731,8 @@ namespace zero {
             );
             currentTempVariableAllocator()->release(tempIndex);
 
-            auto statements = ifStatementAstNode->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(ifStatementAstNode->program);
+
             if (ifStatementAstNode->elseProgram != nullptr) {
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(JMP)
@@ -747,10 +742,7 @@ namespace zero {
             }
             currentProgram()->addLabel(ifFalseLabel);
             if (ifStatementAstNode->elseProgram != nullptr) {
-                statements = ifStatementAstNode->elseProgram->statements;
-                for (auto stmt: *statements) {
-                    visitStatement(stmt);
-                }
+                visitProgram(ifStatementAstNode->elseProgram);
             }
             currentProgram()->addLabel(ifEndLabel);
         }
@@ -782,10 +774,7 @@ namespace zero {
             );
 
             currentProgram()->addLabel(loopBodyLabel);
-            auto statements = loop->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(loop->program);
 
             currentProgram()->addLabel(loopIterationLabel);
             if (loop->loopIterationExpression != nullptr) {
@@ -852,10 +841,27 @@ namespace zero {
                 visitBreak(stmt);
             } else if (stmt->type == StatementAstNode::TYPE_CONTINUE) {
                 visitContinue(stmt);
-            } else {
+            } else if (stmt->type == StatementAstNode::TYPE_VARIABLE_DECLARATION) {
                 visitVariable(stmt->variable);
             }
             currentTempVariableAllocator()->release(tempIndex);
+        }
+
+        void visitNamedFunctions(ProgramAstNode *program) {
+            auto statements = program->statements;
+            for (auto stmt: statements) {
+                if (stmt->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                    visitFunction(stmt->namedFunction, stmt->namedFunction->memoryIndex);
+                }
+            }
+        }
+
+        void visitProgram(ProgramAstNode *program) {
+            visitNamedFunctions(program);
+            auto statements = program->statements;
+            for (auto stmt: statements) {
+                visitStatement(stmt);
+            }
         }
     };
 

@@ -13,18 +13,17 @@ namespace zero {
 
         if (ifContext->ifStatement() != nullptr) {
             // else if
-            ProgramAstNode* elseProgram = new ProgramAstNode();
+            auto* elseProgram = new ProgramAstNode();
             elseProgram->fileName = fileName;
             elseProgram->line = ifContext->ifStatement()->getStart()->getLine();
             elseProgram->pos = ifContext->ifStatement()->getStart()->getCharPositionInLine();
-            elseProgram->statements = new vector<StatementAstNode *>();
             auto elseStatement = new StatementAstNode();
             elseStatement->line = elseProgram->line;
             elseStatement->pos = elseProgram->pos;
             elseStatement->fileName = elseProgram->fileName;
             elseStatement->type = StatementAstNode::TYPE_IF;
             elseStatement->ifStatement = from(ifContext->ifStatement(), fileName);
-            elseProgram->statements->push_back(elseStatement);
+            elseProgram->statements.push_back(elseStatement);
             ifStmt->elseProgram = elseProgram;
         } else if (ifContext->program().size() > 1) {
             // else
