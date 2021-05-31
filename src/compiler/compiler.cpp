@@ -37,7 +37,7 @@ namespace zero {
 
     private:
         Logger log = Logger("compiler");
-        TypeMetadataExtractor metadataExtractor = TypeMetadataExtractor();
+        TypeInfoExtractor metadataExtractor = TypeInfoExtractor();
         ByteCodeGenerator byteCodeGenerator = ByteCodeGenerator();
 
         Program* doCompile(ProgramAstNode *programAst) {

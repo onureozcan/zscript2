@@ -34,6 +34,7 @@ namespace zero {
 
             int indexOfOverloadOrMinusOne(TypeInfo* type);
             OverloadInfo firstOverload();
+            vector<OverloadInfo> allOverloads();
             int addOverload(TypeInfo* type, int index);
         };
 

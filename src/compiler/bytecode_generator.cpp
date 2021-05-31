@@ -257,7 +257,8 @@ namespace zero {
         }
 
         unsigned int visitAtom(AtomicExpressionAstNode *atomic,
-                               unsigned int preferredIndex = 0
+                               unsigned int preferredIndex = 0,
+                               TypeInfo *preferredOverload = nullptr
         ) {
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL:
@@ -280,19 +281,25 @@ namespace zero {
                     return visitFunction((FunctionAstNode *) atomic, preferredIndex);
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
+                    auto memoryIndex = atomic->memoryIndex;
+                    if (preferredOverload != nullptr) {
+                        if (atomic->propertyInfo != nullptr) {
+                            memoryIndex = atomic->propertyInfo->indexOfOverloadOrMinusOne(preferredOverload);
+                        }
+                    }
                     if (atomic->memoryDepth == 0) {
                         // in the current frame, simple, say its address relative to current frame
-                        return atomic->memoryIndex;
+                        return memoryIndex;
                     } else {
                         // in a parent frame
                         currentProgram()->addInstruction(
                                 (new Instruction())
                                         ->withOpCode(GET_IN_PARENT)
                                         ->withOp1(atomic->memoryDepth)
-                                        ->withOp2(atomic->memoryIndex)
+                                        ->withOp2(memoryIndex)
                                         ->withDestination(preferredIndex)
                                         ->withComment(
-                                                "getting the value at index " + to_string(atomic->memoryIndex)
+                                                "getting the value at index " + to_string(memoryIndex)
                                                 + " at parent with depth " + to_string(atomic->memoryDepth) +
                                                 " into index " + to_string(preferredIndex) + " in the current frame (" +
                                                 atomic->data + ")"
@@ -320,10 +327,10 @@ namespace zero {
                 );
             }
             currentTempVariableAllocator()->release(tempIndex);
-            auto functionType = functionCall->left->resolvedType;
+            auto functionType = functionCall->preferredCalleeOverload;
             auto opCode = functionType->isNative ? CALL_NATIVE : CALL;
 
-            unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex);
+            unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex, functionType);
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(opCode)
                             ->withOp1(functionIndex)
@@ -624,11 +631,12 @@ namespace zero {
         }
 
         unsigned int visitExpression(ExpressionAstNode *expression,
-                                     unsigned int preferredIndex = 0
+                                     unsigned int preferredIndex = 0,
+                                     TypeInfo *preferredOverload = nullptr
         ) {
             switch (expression->expressionType) {
                 case ExpressionAstNode::TYPE_ATOMIC : {
-                    return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex);
+                    return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex, preferredOverload);
                 }
                 case ExpressionAstNode::TYPE_BINARY: {
                     return visitBinary((BinaryExpressionAstNode *) expression, preferredIndex);

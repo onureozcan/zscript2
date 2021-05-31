@@ -23,6 +23,17 @@ namespace zero {
         return info;
     }
 
+    vector<TypeInfo::PropertyDescriptor::OverloadInfo> TypeInfo::PropertyDescriptor::allOverloads() {
+        auto ret = vector<TypeInfo::PropertyDescriptor::OverloadInfo>();
+        for (auto overload: typeInfoIndexMap){
+            ret.push_back({
+               overload.first,
+               overload.second
+            });
+        }
+        return ret;
+    }
+
     int TypeInfo::PropertyDescriptor::indexOfOverloadOrMinusOne(TypeInfo *type) {
         for (auto pair : typeInfoIndexMap) {
             auto overloadType = pair.first;

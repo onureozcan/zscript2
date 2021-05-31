@@ -7,7 +7,7 @@ using namespace std;
 
 namespace zero {
 
-    class TypeMetadataExtractor::Impl {
+    class TypeInfoExtractor::Impl {
 
     private:
         struct LocalPropertyPointer {
@@ -233,14 +233,25 @@ namespace zero {
                 call->resolvedTypeParams.push_back(paramAsType);
             }
 
+            vector<TypeInfo *> functionParameterTypes;
             visitExpression(call->left);
             for (auto parameter:*call->params) {
                 visitExpression(parameter);
+                functionParameterTypes.push_back(parameter->resolvedType);
             }
             currentAstNode = call;
 
             // check if it is callable
-            auto calleeType = call->left->resolvedType;
+            TypeInfo *calleeType;
+            try {
+                calleeType = typeHelper.getOverloadToCall(
+                        call->left, &call->resolvedTypeParams, &functionParameterTypes
+                );
+                call->preferredCalleeOverload = calleeType;
+            } catch (TypeExtractionException &ex) {
+                errorExit(ex.what() + currentNodeInfoStr());
+            }
+
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
@@ -403,7 +414,7 @@ namespace zero {
                     auto function = statement->namedFunction;
                     auto functionType = typeHelper.getFunctionTypeFromFunctionAst(function);
                     function->resolvedType = functionType;
-                    function->memoryIndex  = contextChain.current()->addProperty(function->name, functionType, true);
+                    function->memoryIndex = contextChain.current()->addProperty(function->name, functionType, true);
                 }
             }
         }
@@ -470,11 +481,11 @@ namespace zero {
         }
     };
 
-    void TypeMetadataExtractor::extractAndRegister(ProgramAstNode *function) {
+    void TypeInfoExtractor::extractAndRegister(ProgramAstNode *function) {
         this->impl->extractAndRegister(function);
     }
 
-    TypeMetadataExtractor::TypeMetadataExtractor() {
+    TypeInfoExtractor::TypeInfoExtractor() {
         this->impl = new Impl();
     }
 }

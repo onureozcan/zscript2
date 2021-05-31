@@ -32,13 +32,13 @@ namespace zero {
         explicit TypeExtractionException(const string &arg) : runtime_error(arg) {}
     };
 
-    class TypeMetadataExtractor {
+    class TypeInfoExtractor {
         class Impl;
 
     public:
         void extractAndRegister(ProgramAstNode *program);
 
-        explicit TypeMetadataExtractor();
+        explicit TypeInfoExtractor();
 
     private:
         Impl *impl;
@@ -89,5 +89,7 @@ namespace zero {
                 int isNative = false);
 
         TypeInfo *getFunctionTypeFromFunctionAst(FunctionAstNode *function);
+
+        TypeInfo *getOverloadToCall(ExpressionAstNode* callee, vector<TypeInfo*> *typeParameters,vector<TypeInfo*> *functionParameters);
     };
 }

@@ -81,6 +81,8 @@ namespace zero {
         vector<TypeDescriptorAstNode*> typeParams;
 
         vector<TypeInfo*> resolvedTypeParams;
+
+        TypeInfo* preferredCalleeOverload;
     };
 
     class AtomicExpressionAstNode : public ExpressionAstNode {

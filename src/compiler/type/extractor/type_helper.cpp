@@ -150,4 +150,84 @@ namespace zero {
             context->addTypeArgument(name, typeArgument);
         }
     }
+
+    TypeInfo *TypeHelper::getOverloadToCall(
+            ExpressionAstNode *callee,
+            vector<TypeInfo *> *typeParameters,
+            vector<TypeInfo *> *functionParameters) {
+
+        // not overloaded
+        if (callee->propertyInfo == nullptr) {
+            return callee->resolvedType;
+        }
+
+        auto overloads = callee->propertyInfo->allOverloads();
+        // not overloaded
+        if (overloads.size() == 1) {
+            return overloads.front().type;
+        }
+
+        auto explicitlyPassedTypeParameterCount = typeParameters->size();
+
+        // filter by type parameters
+        auto filteredByExplicitTypeParameters = vector<TypeInfo *>();
+        if (explicitlyPassedTypeParameterCount != 0) {
+            for (auto overload: overloads) {
+                auto calleeType = overload.type;
+                auto expectedTypeParameterCount = calleeType->getTypeArguments().size();
+                if (expectedTypeParameterCount == explicitlyPassedTypeParameterCount) {
+                    //check type parameters
+                    auto expectedTypeParameters = calleeType->getTypeArguments();
+                    auto filtered = false;
+                    for (unsigned int i = 0; i < explicitlyPassedTypeParameterCount; i++) {
+                        auto expectedTypeParam = expectedTypeParameters.at(i);
+                        auto givenTypeParam = typeParameters->at(i);
+                        if (!expectedTypeParam.second->typeBoundary->isAssignableFrom(givenTypeParam)) {
+                            filtered = true;
+                            break;
+                        }
+                    }
+                    if (!filtered)
+                        filteredByExplicitTypeParameters.push_back(calleeType);
+                }
+            }
+        } else {
+            for (auto overload: overloads) {
+                filteredByExplicitTypeParameters.push_back(overload.type);
+            }
+        }
+
+        // filter by function parameters
+        auto filteredByFunctionParameters = vector<TypeInfo *>();
+        for (auto calleeType: filteredByExplicitTypeParameters) {
+            auto expectedFunctionParameterTypes = calleeType->getFunctionArguments();
+            auto expectedParameterCount = expectedFunctionParameterTypes.size() - 1;
+            if (expectedParameterCount != functionParameters->size()) {
+                continue;
+            }
+            auto filtered = false;
+            for (unsigned int i = 0; i < functionParameters->size(); i++) {
+                auto expectedType = expectedFunctionParameterTypes[i];
+                auto givenType = functionParameters->at(i);
+                if (expectedType->isTypeArgument) {
+                    expectedType = expectedType->typeBoundary;
+                }
+                if (!expectedType->isAssignableFrom(givenType)) {
+                    filtered = true;
+                    break;
+                }
+            }
+            if (!filtered)
+                filteredByFunctionParameters.push_back(calleeType);
+        }
+
+
+        if (filteredByFunctionParameters.size() == 1) {
+            return filteredByFunctionParameters.at(0);
+        }
+        if (!filteredByFunctionParameters.empty()) {
+            throw TypeExtractionException("more than one possible overload is found");
+        }
+        throw TypeExtractionException("no possible overload is found");
+    }
 }
