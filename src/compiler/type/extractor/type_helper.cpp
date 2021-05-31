@@ -228,7 +228,12 @@ namespace zero {
             return filteredByFunctionParameters.at(0);
         }
         if (!filteredByFunctionParameters.empty()) {
-            throw TypeExtractionException("more than one possible overload is found");
+            string possibilitiesStr;
+            for (auto &type: filteredByFunctionParameters) {
+                possibilitiesStr += type->toString() + ", ";
+            }
+            throw TypeExtractionException("multiple possible overloads are found, call is ambiguous. "
+                                          "\npossibilities: [" + possibilitiesStr + "]");
         }
         throw TypeExtractionException("no possible overload is found");
     }

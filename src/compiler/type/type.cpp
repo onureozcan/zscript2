@@ -25,11 +25,11 @@ namespace zero {
 
     vector<TypeInfo::PropertyDescriptor::OverloadInfo> TypeInfo::PropertyDescriptor::allOverloads() {
         auto ret = vector<TypeInfo::PropertyDescriptor::OverloadInfo>();
-        for (auto overload: typeInfoIndexMap){
+        for (auto overload: typeInfoIndexMap) {
             ret.push_back({
-               overload.first,
-               overload.second
-            });
+                                  overload.first,
+                                  overload.second
+                          });
         }
         return ret;
     }
@@ -69,7 +69,7 @@ namespace zero {
                 auto descriptor = propertiesMap[propertyName];
                 int existingIndex = descriptor->indexOfOverloadOrMinusOne(typeInfo);
                 if (existingIndex != -1) {
-                    return existingIndex;
+                    throw runtime_error("overload of the same kind was already defined!");
                 } else {
                     descriptor->addOverload(typeInfo, indexCounter++);
                     return indexCounter - 1;

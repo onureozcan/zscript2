@@ -78,8 +78,6 @@ namespace zero {
             auto selectedType = expectedType;
             if (variable->initialValue == nullptr) {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, expectedType);
-                log.debug("variable `%s`:`%s` added to context %s", variable->identifier.c_str(),
-                          expectedType->name.c_str(), parentContext->name.c_str());
             } else {
                 visitExpression(variable->initialValue);
                 auto initializedType = variable->initialValue->resolvedType;
@@ -96,8 +94,6 @@ namespace zero {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
             }
             variable->resolvedType = selectedType;
-            log.debug("\n\tvar `%s`:`%s` added to context %s", variable->identifier.c_str(),
-                      selectedType->name.c_str(), parentContext->name.c_str());
         }
 
         /**
@@ -411,10 +407,15 @@ namespace zero {
         void visitNamedFunctions(ProgramAstNode *program) {
             for (auto &statement: program->statements) {
                 if (statement->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                    currentAstNode = statement;
                     auto function = statement->namedFunction;
                     auto functionType = typeHelper.getFunctionTypeFromFunctionAst(function);
                     function->resolvedType = functionType;
-                    function->memoryIndex = contextChain.current()->addProperty(function->name, functionType, true);
+                    try {
+                        function->memoryIndex = contextChain.current()->addProperty(function->name, functionType, true);
+                    } catch (runtime_error &err) {
+                        errorExit(err.what() + currentNodeInfoStr());
+                    }
                 }
             }
         }
