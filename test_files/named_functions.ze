@@ -1,4 +1,4 @@
-/*print(test())
+print(test())
 print(test(25))
 print(test("test"))
 print(test("test",25))
@@ -6,7 +6,7 @@ print(test_generic("test_generic"))
 print(test_generic("test_generic", "other"))
 print(test_generic("test_generic", 5))
 print(test_generic<String>("test_generic"))
-print(test_generic<String,String>("test_generic", "other"))*/
+print(test_generic<String>("test_generic", "other"))
 print(test_generic<String,int>("test_generic", 5))
 
 fun test():String {

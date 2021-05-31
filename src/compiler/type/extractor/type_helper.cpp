@@ -133,8 +133,10 @@ namespace zero {
         TypeInfo *functionType = getFunctionTypeFromFunctionSignature(argTypes,
                                                                       function->returnType,
                                                                       &typeArguments);
-        for (const auto &typeArg: typeArguments) {
-            functionType->addTypeArgument(typeArg.first, typeArg.second);
+        for (auto &piece: function->typeArguments) {
+            auto name = piece.first;
+            auto typeArg = typeArguments[name];
+            functionType->addTypeArgument(name, typeArg);
         }
         return functionType;
     }
