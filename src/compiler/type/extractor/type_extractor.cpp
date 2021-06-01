@@ -85,7 +85,7 @@ namespace zero {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
                     } else {
-                        errorExit("cannot assign `" + initializedType->name + "` to `" + expectedType->name + "`" +
+                        errorExit("cannot assign `" + initializedType->toString() + "` to `" + expectedType->toString() + "`" +
                                   currentNodeInfoStr());
                     }
                 } else {
@@ -162,6 +162,15 @@ namespace zero {
             visitExpression(binary->right);
             if (!binary->left->isLvalue) {
                 errorExit("lvalue expected for assignment." + currentNodeInfoStr());
+            }
+            if (binary->left->isOverloaded() || binary->right->isOverloaded()) {
+                errorExit("overloaded types are not explicitly assignable." + currentNodeInfoStr());
+            }
+            if (!binary->left->resolvedType->isAssignableFrom(binary->right->resolvedType)) {
+                errorExit("cannot assign from type "
+                          + binary->left->resolvedType->toString()
+                          + " to " + binary->right->resolvedType->toString()
+                          + currentNodeInfoStr());
             }
         }
 

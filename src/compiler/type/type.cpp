@@ -132,25 +132,31 @@ namespace zero {
             this->indexCounter = other->impl->indexCounter;
         }
 
-        static TypeInfo *resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *typeParameters) {
+        static TypeInfo *
+        resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *passedTypeParameters) {
             // non-generic
-            if (typeParameters->empty()) return genericType;
+            if (passedTypeParameters->empty()) return genericType;
             if (genericType->isTypeArgument) {
-                return typeParameters->find(genericType->name)->second;
+                return passedTypeParameters->find(genericType->name)->second;
             } else {
                 auto clone = new TypeInfo(genericType->name, genericType->isCallable, genericType->isNative);
                 // resolve recursively
                 auto properties = genericType->impl->propertiesMap;
-                auto parameters = genericType->impl->typeArguments;
+                auto typeArguments = genericType->impl->typeArguments;
+                auto functionArguments = genericType->impl->functionArguments;
                 auto immediateProperties = genericType->getImmediateProperties();
-                for (const auto &actualParam : parameters) {
-                    auto resolvedParam = resolveGenericType(actualParam.second, typeParameters);
+                for (const auto &actualParam : typeArguments) {
+                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeParameters);
                     clone->addTypeArgument(actualParam.first, resolvedParam);
                 }
                 for (const auto &actualProp: properties) {
                     auto resolvedPropType = resolveGenericType(actualProp.second->firstOverload().type,
-                                                               typeParameters);
+                                                               passedTypeParameters);
                     clone->addProperty(actualProp.first, resolvedPropType);
+                }
+                for (const auto &actualArg: functionArguments) {
+                    auto resolvedArg = resolveGenericType(actualArg, passedTypeParameters);
+                    clone->addFunctionArgument(resolvedArg);
                 }
                 clone->impl->immediates = genericType->impl->immediates;
                 return clone;
@@ -215,19 +221,56 @@ namespace zero {
     }
 
     int TypeInfo::isAssignableFrom(TypeInfo *other) {
-        if (other == &TypeInfo::T_VOID) {
+        auto t1 = this;
+        auto t2 = other;
+        if (this->isTypeArgument) {
+            t1 = this->typeBoundary;
+        }
+        if (other->isTypeArgument) {
+            t2 = other->typeBoundary;
+        }
+        if (t2 == &TypeInfo::T_VOID) {
             // void cannot be assigned to anything
             return 0;
         }
-        if (this == &TypeInfo::ANY) {
+        if (t1 == &TypeInfo::ANY) {
             // anything can be assigned to any
             return 1;
         }
-        if (this == &TypeInfo::DECIMAL) {
+        if (t1 == &TypeInfo::DECIMAL) {
             // int can be auto cast to decimal
-            return other == &TypeInfo::INT || other == &TypeInfo::DECIMAL;
+            return t2 == &TypeInfo::INT || t2 == &TypeInfo::DECIMAL;
         }
-        return other->name == this->name;
+        // check names
+        if (t1->name == t2->name) {
+            // check type arguments
+            auto thisTypeArgs = t1->getTypeArguments();
+            auto otherTypeArgs = t2->getTypeArguments();
+            if (thisTypeArgs.size() == otherTypeArgs.size()) {
+                for (int i = 0; i < otherTypeArgs.size(); i++) {
+                    auto thisArg = thisTypeArgs.at(i);
+                    auto otherArg = otherTypeArgs.at(i);
+                    if (!thisArg.second->isAssignableFrom(otherArg.second)) {
+                        goto end;
+                    }
+                }
+            } else goto end;
+            // check function arguments
+            auto thisFncArgs = t1->getFunctionArguments();
+            auto otherFncArgs = t2->getFunctionArguments();
+            if (thisFncArgs.size() == otherFncArgs.size()) {
+                for (int i = 0; i < thisFncArgs.size(); i++) {
+                    auto thisArg = thisFncArgs.at(i);
+                    auto otherArg = otherFncArgs.at(i);
+                    if (!thisArg->isAssignableFrom(otherArg)) {
+                        goto end;
+                    }
+                }
+            } else goto end;
+        }
+
+        end:
+        return t2->equals(t1);
     }
 
     vector<pair<string, TypeInfo *>> TypeInfo::getTypeArguments() {
