@@ -67,5 +67,10 @@ add_executable(zero
         ${ANTLR_ZeroLexer_CXX_OUTPUTS}
         ${ANTLR_ZeroParser_CXX_OUTPUTS})
 
-target_link_libraries(zero antlr4_static)
-#set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
+if (UNIX)
+    target_link_libraries(zero antlr4_static "-lrt")
+else()
+    target_link_libraries(zero antlr4_static)
+endif()
+
+set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
