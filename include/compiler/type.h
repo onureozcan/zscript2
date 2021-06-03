@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 
+#define TYPE_LITERAL_NULL "null"
 #define TYPE_LITERAL_STRING "String"
 #define TYPE_LITERAL_INT "int"
 #define TYPE_LITERAL_BOOLEAN "boolean"
@@ -46,6 +47,7 @@ namespace zero {
         int isCallable;
         int isNative;
 
+        static TypeInfo NULL_;
         static TypeInfo INT;
         static TypeInfo DECIMAL;
         static TypeInfo STRING;
@@ -87,9 +89,9 @@ namespace zero {
 
         string toString();
 
+        bool equals(TypeInfo *other);
+
     private:
         Impl *impl;
-
-        bool equals(TypeInfo *other);
     };
 }

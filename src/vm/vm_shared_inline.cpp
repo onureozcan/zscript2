@@ -29,6 +29,12 @@ namespace zero {
         return val;
     }
 
+    inline z_value_t nvalue() {
+        z_value_t val;
+        val.uint_value = PRIMITIVE_TYPE_NULL;
+        return val;
+    }
+
     inline z_value_t bvalue(int32_t _val) {
         z_value_t val;
         val.uint_value = PRIMITIVE_TYPE_BOOLEAN | (((uint64_t) _val) << 32);

@@ -154,6 +154,10 @@ namespace zero {
                     atomic->propertyInfo = depthTypeInfo.descriptor;
                     break;
                 }
+                case AtomicExpressionAstNode::TYPE_NULL: {
+                    atomic->resolvedType = &TypeInfo::NULL_;
+                    break;;
+                }
             }
         }
 

@@ -29,9 +29,10 @@ namespace zero {
     static const int VM_VALUE_TYPE_INT = PRIMITIVE_TYPE_INT;
     static const int VM_VALUE_TYPE_DECIMAL = PRIMITIVE_TYPE_DOUBLE;
     static const int VM_VALUE_TYPE_BOOLEAN = PRIMITIVE_TYPE_BOOLEAN;
-    static const int VM_VALUE_TYPE_STRING = 4;
-    static const int VM_VALUE_TYPE_FUNCTION_REF = 5;
-    static const int VM_VALUE_TYPE_TYPE_OBJECT = 6;
+    static const int VM_VALUE_TYPE_NULL = PRIMITIVE_TYPE_NULL;
+    static const int VM_VALUE_TYPE_STRING = PRIMITIVE_TYPE_NULL + 1;
+    static const int VM_VALUE_TYPE_FUNCTION_REF = VM_VALUE_TYPE_STRING + 1;
+    static const int VM_VALUE_TYPE_TYPE_OBJECT = VM_VALUE_TYPE_FUNCTION_REF + 1;
 
     z_fnc_ref_t* object_manager_create_fn_ref(unsigned int instruction_index, z_value_t *context_object);
 
@@ -40,5 +41,7 @@ namespace zero {
     z_value_t* object_manager_create_object(string *type_ident, unsigned int size);
 
     z_object_type_info object_manager_guess_type(z_value_t value);
+
+    bool object_manager_is_null(z_value_t value);
 
 }

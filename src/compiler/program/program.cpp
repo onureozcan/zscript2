@@ -27,6 +27,8 @@ namespace zero {
                     return "MOV";
                 case MOV_INT:
                     return "MOV_INT";
+                case MOV_NULL:
+                    return "MOV_NULL";
                 case MOV_BOOLEAN:
                     return "MOV_BOOLEAN";
                 case MOV_DECIMAL:

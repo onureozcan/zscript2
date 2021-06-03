@@ -308,6 +308,15 @@ namespace zero {
                         return preferredIndex;
                     }
                 }
+                case AtomicExpressionAstNode::TYPE_NULL: {
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV_NULL)
+                                    ->withDestination(preferredIndex)
+                                    ->withComment("load null into index " + to_string(preferredIndex) +
+                                                  " in the current frame ")
+                    );
+                    return preferredIndex;
+                }
             }
             return atomic->memoryIndex;
         }
@@ -680,8 +689,6 @@ namespace zero {
                                     ->withDestination(destinationIndex)
                                     ->withComment("auto cast fromm int to float")
                     );
-                } else {
-                    errorExit("cannot cast from " + t1->name + " to " + t2->name);
                 }
             }
         }
@@ -708,17 +715,31 @@ namespace zero {
                 }
 
             } else {
-                // NULL initializer
+                // default initializer
                 auto typeObj = variable->resolvedType;
-                auto opCode = typeObj == &TypeInfo::DECIMAL ? MOV_DECIMAL : MOV_INT;
-                auto initialValue = typeObj == &TypeInfo::DECIMAL ? 0.0f : 0;
-                currentProgram()->addInstruction(
-                        (new Instruction())->withOpCode(opCode)
-                                ->withOp1(initialValue)
-                                ->withDestination(destinationIndex)
-                                ->withComment("mov NULL value into index " +
-                                              to_string(destinationIndex) + " (" + variable->identifier + ")")
-                );
+                auto comment = "mov default value into index " +
+                               to_string(destinationIndex) + " (" + variable->identifier + ")";
+                if (typeObj->name == TypeInfo::DECIMAL.name) {
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV_DECIMAL)
+                                    ->withOp1(0.0f)
+                                    ->withDestination(destinationIndex)
+                                    ->withComment(comment)
+                    );
+                } else if (typeObj->name == TypeInfo::INT.name) {
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV_INT)
+                                    ->withOp1((unsigned) 0)
+                                    ->withDestination(destinationIndex)
+                                    ->withComment(comment)
+                    );
+                } else {
+                    currentProgram()->addInstruction(
+                            (new Instruction())->withOpCode(MOV_NULL)
+                                    ->withDestination(destinationIndex)
+                                    ->withComment(comment)
+                    );
+                }
             }
         }
 

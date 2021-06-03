@@ -24,3 +24,8 @@ true
 true
 i was called
 true
+null
+0
+0.000000
+null
+null

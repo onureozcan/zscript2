@@ -79,7 +79,7 @@ namespace zero {
     void vm_interpret(Program *program) {
         static void *labels[] = {
                 &&FN_ENTER_HEAP, &&FN_ENTER_STACK, &&JMP, &&JMP_TRUE, &&JMP_FALSE,
-                &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_BOOLEAN,
+                &&MOV, &&MOV_FNC, &&MOV_INT, &&MOV_NULL, &&MOV_BOOLEAN,
                 &&MOV_DECIMAL, &&MOV_STRING, &&CALL, &&CALL_NATIVE, &&ADD_INT, &&ADD_STRING,
                 &&ADD_DECIMAL, &&SUB_INT, &&SUB_DECIMAL, &&DIV_INT, &&DIV_DECIMAL,
                 &&MUL_INT, &&MUL_DECIMAL, &&MOD_INT, &&MOD_DECIMAL, &&CMP_EQ,
@@ -179,6 +179,11 @@ namespace zero {
             *DESTINATION_PTR = ivalue(instruction_ptr->op1);
             GOTO_NEXT;
         }
+        MOV_NULL:
+        {
+            *DESTINATION_PTR = nvalue();
+            GOTO_NEXT;
+        }
         MOV_BOOLEAN:
         {
             *DESTINATION_PTR = bvalue(instruction_ptr->op1);
@@ -200,7 +205,12 @@ namespace zero {
         CALL:
         {
             VM_DEBUG(("call, ip: %d, bp: %d, sp: %d", (instruction_ptr - instructions), base_pointer, stack_pointer));
-            auto *fnc_ref = (z_fnc_ref_t *) context_object[instruction_ptr->op1].ptr_value;
+            z_value_t &callee = context_object[instruction_ptr->op1];
+            auto *fnc_ref = (z_fnc_ref_t *) callee.ptr_value;
+            if (object_manager_is_null(callee)) {
+                vm_log.error("null pointer exception: callee address was null");
+                exit(1);
+            }
             // push number of params pushed to stack
             push(uvalue(instruction_ptr->op2));
             // push current instruction pointer

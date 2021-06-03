@@ -35,6 +35,9 @@ namespace zero {
         if (atomContext->TRUE_() != nullptr || atomContext->FALSE_() != nullptr) {
             atomic->atomicType = AtomicExpressionAstNode::TYPE_BOOLEAN;
         }
+        if (atomContext->NULL_() != nullptr) {
+            atomic->atomicType = AtomicExpressionAstNode::TYPE_NULL;
+        }
         return atomic;
     }
 

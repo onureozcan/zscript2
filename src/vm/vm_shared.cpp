@@ -45,6 +45,9 @@ namespace zero {
             case VM_VALUE_TYPE_BOOLEAN:
                 str_value = z_value.arithmetic_int_value ? "true" : "false";
                 break;
+            case VM_VALUE_TYPE_NULL:
+                str_value = "null";
+                break;
             case VM_VALUE_TYPE_STRING:
                 str_value = *z_value.string_value;
                 break;

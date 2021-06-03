@@ -3,6 +3,7 @@
 
 namespace zero {
 
+    TypeInfo TypeInfo::NULL_ = TypeInfo(TYPE_LITERAL_NULL, 0);
     TypeInfo TypeInfo::STRING = TypeInfo(TYPE_LITERAL_STRING, 0);
     TypeInfo TypeInfo::INT = TypeInfo(TYPE_LITERAL_INT, 0);
     TypeInfo TypeInfo::BOOLEAN = TypeInfo(TYPE_LITERAL_BOOLEAN, 0);
@@ -229,6 +230,12 @@ namespace zero {
         if (other->isTypeArgument) {
             t2 = other->typeBoundary;
         }
+
+        if (t1->equals(&TypeInfo::NULL_)) {
+            // nothing can be assigned to null
+            return false;
+        }
+
         if (t2 == &TypeInfo::T_VOID) {
             // void cannot be assigned to anything
             return 0;
@@ -241,6 +248,12 @@ namespace zero {
             // int can be auto cast to decimal
             return t2 == &TypeInfo::INT || t2 == &TypeInfo::DECIMAL;
         }
+
+        if (t2->equals(&TypeInfo::NULL_)) {
+            // null cannot be assigned tp decimal or int
+            return !t1->equals(&TypeInfo::DECIMAL) && !t1->equals(&TypeInfo::INT);
+        }
+
         // check names
         if (t1->name == t2->name) {
             // check type arguments

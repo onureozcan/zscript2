@@ -30,3 +30,19 @@ print("short circuit test - or")
 print(false || bool(true)) // should be called
 print(true || bool(true)) // should not be called
 print(false || false || bool(true)) // should be called
+
+var test = null
+print(test) // null
+
+var test2: int
+print(test2) // 0
+
+var test3: decimal
+print(test3) // 0.0
+
+var test4: fun<Void>
+print(test4) // null
+
+var test5:fun<Void> = null
+print(test5) // null
+

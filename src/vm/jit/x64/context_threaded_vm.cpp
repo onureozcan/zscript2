@@ -102,6 +102,11 @@ namespace zero {
         return 0;
     }
 
+    uint64_t z_handler_MOV_NULL(z_op_t op1, z_op_t op2, z_op_t dest) {
+        *DESTINATION_PTR = nvalue();
+        return 0;
+    }
+
     uint64_t z_handler_MOV_BOOLEAN(z_op_t op1, z_op_t op2, z_op_t dest) {
         *DESTINATION_PTR = bvalue(op1.int_value);
         return 0;
@@ -109,7 +114,7 @@ namespace zero {
 
     uint64_t z_handler_MOV_DECIMAL(z_op_t op1, z_op_t op2, z_op_t dest) {
         auto bit_representation = op1.uint_vaLue;
-        double value = *reinterpret_cast<double*>(&bit_representation);
+        double value = *reinterpret_cast<double *>(&bit_representation);
         *DESTINATION_PTR = dvalue(value);
         return 0;
     }
@@ -124,7 +129,12 @@ namespace zero {
 
     uint64_t z_handler_CALL(z_op_t op1, z_op_t op2, z_op_t dest) {
         VM_DEBUG(("call, bp: %d, sp: %d", base_pointer, stack_pointer));
-        auto *fnc_ref = (z_fnc_ref_t *) context_object[op1.uint_vaLue].ptr_value;
+        z_value_t &callee = context_object[op1.uint_vaLue];
+        auto *fnc_ref = (z_fnc_ref_t *) callee.ptr_value;
+        if (object_manager_is_null(callee)) {
+            vm_log.error("null pointer exception: callee address was null");
+            exit(1);
+        }
         // push number of params pushed to stack
         push(uvalue(op2.uint_vaLue));
         // push current context pointer
@@ -133,6 +143,7 @@ namespace zero {
         push(uvalue(dest.uint_vaLue));
         // push parent context ptr;
         push(pvalue(fnc_ref->parent_context_ptr));
+
         return (uintptr_t) fnc_ref->instruction_index;
     }
 
@@ -381,7 +392,7 @@ namespace zero {
     uint64_t (*func_ptrs[])(z_op_t, z_op_t, z_op_t) =
             {z_handler_FN_ENTER_HEAP, z_handler_FN_ENTER_STACK,
              z_handler_JMP, z_handler_JMP_TRUE, z_handler_JMP_FALSE,
-             z_handler_MOV, z_handler_MOV_FNC, z_handler_MOV_INT,
+             z_handler_MOV, z_handler_MOV_FNC, z_handler_MOV_INT, z_handler_MOV_NULL,
              z_handler_MOV_BOOLEAN, z_handler_MOV_DECIMAL, z_handler_MOV_STRING,
              z_handler_CALL, z_handler_CALL_NATIVE,
              z_handler_ADD_INT, z_handler_ADD_STRING,

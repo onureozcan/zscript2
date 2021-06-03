@@ -36,4 +36,8 @@ namespace zero {
         }
         return type;
     }
+
+    bool object_manager_is_null(z_value_t value) {
+        return (value.uint_value & 7) == VM_VALUE_TYPE_NULL;
+    }
 }

@@ -8,6 +8,7 @@
 #define PRIMITIVE_TYPE_INT 1
 #define PRIMITIVE_TYPE_DOUBLE 2
 #define PRIMITIVE_TYPE_BOOLEAN 3
+#define PRIMITIVE_TYPE_NULL 4
 
 namespace zero {
 
@@ -54,5 +55,4 @@ namespace zero {
     void vm_run(Program *program);
 
     void vm_interpret(Program *program);
-
 }

@@ -100,6 +100,7 @@ namespace zero {
         static const int TYPE_BOOLEAN = 3;
         static const int TYPE_STRING = 4;
         static const int TYPE_FUNCTION = 5;
+        static const int TYPE_NULL = 6;
     };
 
     class VariableAstNode : public BaseAstNode {
