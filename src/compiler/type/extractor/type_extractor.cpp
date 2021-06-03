@@ -1,6 +1,5 @@
 #include <compiler/type_meta.h>
 #include <compiler/op.h>
-#include <common/logger.h>
 
 #include <vector>
 
@@ -8,13 +7,7 @@ using namespace std;
 
 namespace zero {
 
-    class TypeMetadataExtractor::Impl {
-    public:
-        TypeMetadataRepository *typeMetadataRepository;
-
-        void extractAndRegister(ProgramAstNode *program) {
-            visitGlobal(program);
-        }
+    class TypeInfoExtractor::Impl {
 
     private:
         struct LocalPropertyPointer {
@@ -24,8 +17,10 @@ namespace zero {
 
         Logger log = Logger("type_extractor");
 
+        ContextChain contextChain;
+        TypeHelper typeHelper = TypeHelper(&contextChain);
+
         BaseAstNode *currentAstNode = nullptr;
-        vector<TypeInfo *> contextStack;
         vector<FunctionAstNode *> functionsStack;
 
         void errorExit(const string &error) {
@@ -36,118 +31,6 @@ namespace zero {
         string currentNodeInfoStr() {
             return " at " + currentAstNode->fileName + " line " +
                    to_string(currentAstNode->line);
-        }
-
-        TypeInfo *currentContext() {
-            if (contextStack.empty()) return nullptr;
-            return contextStack.back();
-        }
-
-        void addTypeArguments(const vector<pair<string, TypeDescriptorAstNode *>> &typeAstMap) {
-            TypeInfo *context = currentContext();
-            for (auto &piece: typeAstMap) {
-                auto name = piece.first;
-                auto typeAst = piece.second;
-                auto typeBoundary = typeOrError(typeAst);
-                auto typeArgument = new TypeInfo(name, typeBoundary->isCallable, typeBoundary->isNative, true);
-                typeArgument->typeBoundary = typeBoundary;
-                context->addTypeArgument(name, typeArgument);
-            }
-        }
-
-        TypeInfo *getParametricType(const string &name) {
-            int depth = 0;
-            TypeInfo *current;
-            while (true) {
-                if (depth < contextStack.size())
-                    current = contextStack[contextStack.size() - depth - 1];
-                else break;
-                auto typeArguments = current->getTypeArguments();
-                for (const auto &argument: typeArguments) {
-                    if (argument.first == name) {
-                        return argument.second;
-                    }
-                }
-                depth++;
-            }
-            return nullptr;
-        }
-
-        TypeInfo *getFunctionType(const vector<TypeDescriptorAstNode *> &argTypes,
-                                  TypeDescriptorAstNode *returnType,
-                                  int isNative = false) {
-            auto typeAst = TypeDescriptorAstNode();
-            typeAst.name = isNative ? "native" : "fun";
-            for (auto argType : argTypes) {
-                typeAst.parameters.push_back(argType);
-            }
-            typeAst.parameters.push_back(returnType);
-            auto type = constructFunctionTypeFromAst(&typeAst);
-            type->isNative = isNative;
-            return type;
-        }
-
-        TypeInfo *typeOrError(const string &name) {
-            auto typeInfo = typeMetadataRepository->findTypeByName(name);
-            if (typeInfo == nullptr) {
-                typeInfo = getParametricType(name);
-                if (typeInfo != nullptr) {
-                    return typeInfo;
-                }
-                errorExit("`" + name + "` does not name a type or type parameter " + currentNodeInfoStr());
-            }
-            return typeInfo;
-        }
-
-        TypeInfo *constructFunctionTypeFromAst(TypeDescriptorAstNode *typeAst) {
-            auto functionType = new TypeInfo("fun", true, false);
-            auto paramCount = typeAst->parameters.size();
-            if (paramCount == 0) {
-                errorExit("return type expected for function type " + currentNodeInfoStr());
-            }
-            for (int i = 0; i < paramCount; i++) {
-                auto paramAsAst = typeAst->parameters.at(i);
-                auto paramAsType = typeOrError(paramAsAst);
-                functionType->addFunctionArgument(paramAsType);
-            }
-            return functionType;
-        }
-
-        TypeInfo *typeOrError(TypeDescriptorAstNode *typeAst) {
-            // 1 - check that such a type exists considering number of parameters
-            auto name = typeAst->name;
-            auto paramCount = typeAst->parameters.size();
-            if (name == "fun" || name == "native") {
-                // function is a special case. it can have infinite number of parameters and is always exists
-                return constructFunctionTypeFromAst(typeAst);
-            }
-            auto foundType = typeOrError(name);
-            if (paramCount == 0) return foundType;
-
-            // if it contains type parameters, create a copy with parameters checked and bound
-            auto clone = new TypeInfo(foundType->name, foundType->isCallable, foundType->isNative);
-            clone->clonePropertiesFrom(foundType);
-
-            // 2- check that every type parameters in the ast exists
-            for (int i = 0; i < paramCount; i++) {
-                auto paramAsAst = typeAst->parameters.at(i);
-                auto paramAsType = typeOrError(paramAsAst);
-                auto typeBoundaryPair = foundType->getTypeArguments().at(i);
-                auto typeBoundary = typeBoundaryPair.second;
-                auto typeBoundaryIdent = typeBoundaryPair.first;
-                if (typeBoundary->name != paramAsType->name) {
-                    if (!typeBoundary->isAssignableFrom(paramAsType)) {
-                        errorExit("type bounds check failed for parameterized type ` " + typeAst->toString() + "`: `" +
-                                  typeBoundary->name +
-                                  "` is not assignable from `" +
-                                  paramAsType->name + "` " +
-                                  currentNodeInfoStr());
-                    }
-                }
-                clone->addTypeArgument(typeBoundaryIdent, paramAsType);
-            }
-
-            return clone;
         }
 
         Operator *opOrError(const string &name, int operandCount) {
@@ -164,8 +47,8 @@ namespace zero {
             int depth = 0;
             TypeInfo *current;
             while (true) {
-                if (depth < contextStack.size())
-                    current = contextStack[contextStack.size() - depth - 1];
+                if (depth < contextChain.size())
+                    current = contextChain.at(depth);
                 else break;
 
                 auto descriptor = current->getProperty(name);
@@ -190,13 +73,11 @@ namespace zero {
 
         void visitVariable(VariableAstNode *variable) {
             currentAstNode = variable;
-            auto parentContext = currentContext();
-            auto expectedType = typeOrError(variable->typeDescriptorAstNode);
+            auto parentContext = contextChain.current();
+            auto expectedType = typeHelper.typeOrError(variable->typeDescriptorAstNode);
             auto selectedType = expectedType;
             if (variable->initialValue == nullptr) {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, expectedType);
-                log.debug("variable `%s`:`%s` added to context %s", variable->identifier.c_str(),
-                          expectedType->name.c_str(), parentContext->name.c_str());
             } else {
                 visitExpression(variable->initialValue);
                 auto initializedType = variable->initialValue->resolvedType;
@@ -204,7 +85,7 @@ namespace zero {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
                     } else {
-                        errorExit("cannot assign `" + initializedType->name + "` to `" + expectedType->name + "`" +
+                        errorExit("cannot assign `" + initializedType->toString() + "` to `" + expectedType->toString() + "`" +
                                   currentNodeInfoStr());
                     }
                 } else {
@@ -213,8 +94,6 @@ namespace zero {
                 variable->memoryIndex = parentContext->addProperty(variable->identifier, selectedType);
             }
             variable->resolvedType = selectedType;
-            log.debug("\n\tvar `%s`:`%s` added to context %s", variable->identifier.c_str(),
-                      selectedType->name.c_str(), parentContext->name.c_str());
         }
 
         /**
@@ -224,16 +103,17 @@ namespace zero {
          * @param type
          */
         void convertImmediateToLocalVariable(AtomicExpressionAstNode *atomic, TypeInfo *type) {
+            auto currentContext = contextChain.current();
             auto propertyName = atomic->data;
             unsigned int memoryIndex;
-            auto localProperty = currentContext()->getImmediate(propertyName, type);
+            auto localProperty = currentContext->getImmediate(propertyName, type);
             if (localProperty == nullptr) {
-                memoryIndex = currentContext()->addImmediate(propertyName, type);
+                memoryIndex = currentContext->addImmediate(propertyName, type);
                 log.debug("converted immediate value %s into property, stored in index %d", atomic->data.c_str(),
                           memoryIndex);
-                localProperty = currentContext()->getImmediate(propertyName, type);
+                localProperty = currentContext->getImmediate(propertyName, type);
             } else {
-                memoryIndex = localProperty->index;
+                memoryIndex = localProperty->firstOverload().index;
                 log.debug("found immediate value %s at index %d, using it instead", atomic->data.c_str(), memoryIndex);
             }
             atomic->memoryIndex = memoryIndex;
@@ -268,9 +148,10 @@ namespace zero {
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
                     LocalPropertyPointer depthTypeInfo = findPropertyInContextChainOrError(atomic->data);
-                    atomic->resolvedType = depthTypeInfo.descriptor->typeInfo;
+                    atomic->resolvedType = depthTypeInfo.descriptor->firstOverload().type;
                     atomic->memoryDepth = depthTypeInfo.depth;
-                    atomic->memoryIndex = depthTypeInfo.descriptor->index;
+                    atomic->memoryIndex = depthTypeInfo.descriptor->firstOverload().index;
+                    atomic->propertyInfo = depthTypeInfo.descriptor;
                     break;
                 }
             }
@@ -281,6 +162,15 @@ namespace zero {
             visitExpression(binary->right);
             if (!binary->left->isLvalue) {
                 errorExit("lvalue expected for assignment." + currentNodeInfoStr());
+            }
+            if (binary->left->isOverloaded() || binary->right->isOverloaded()) {
+                errorExit("overloaded types are not explicitly assignable." + currentNodeInfoStr());
+            }
+            if (!binary->left->resolvedType->isAssignableFrom(binary->right->resolvedType)) {
+                errorExit("cannot assign from type "
+                          + binary->left->resolvedType->toString()
+                          + " to " + binary->right->resolvedType->toString()
+                          + currentNodeInfoStr());
             }
         }
 
@@ -316,9 +206,11 @@ namespace zero {
             auto *right = (AtomicExpressionAstNode *) binary->right;
             auto propertyNameToSearch = right->data;
             auto propertyDescriptor = findPropertyInObjectOrError(binary->left, propertyNameToSearch);
-            binary->right->resolvedType = propertyDescriptor->typeInfo;
-            binary->right->memoryIndex = propertyDescriptor->index;
-            binary->resolvedType = propertyDescriptor->typeInfo;
+            binary->right->resolvedType = propertyDescriptor->firstOverload().type;
+            binary->right->memoryIndex = propertyDescriptor->firstOverload().index;
+            binary->right->propertyInfo = propertyDescriptor;
+            binary->resolvedType = binary->right->resolvedType;
+            binary->propertyInfo = propertyDescriptor;
             binary->isLvalue = right->isLvalue;
         }
 
@@ -342,18 +234,29 @@ namespace zero {
 
             // resolve type parameters
             for (const auto &paramAsAst: call->typeParams) {
-                auto paramAsType = typeOrError(paramAsAst);
+                auto paramAsType = typeHelper.typeOrError(paramAsAst);
                 call->resolvedTypeParams.push_back(paramAsType);
             }
 
+            vector<TypeInfo *> functionParameterTypes;
             visitExpression(call->left);
             for (auto parameter:*call->params) {
                 visitExpression(parameter);
+                functionParameterTypes.push_back(parameter->resolvedType);
             }
             currentAstNode = call;
 
             // check if it is callable
-            auto calleeType = call->left->resolvedType;
+            TypeInfo *calleeType;
+            try {
+                calleeType = typeHelper.getOverloadToCall(
+                        call->left, &call->resolvedTypeParams, &functionParameterTypes
+                );
+                call->preferredCalleeOverload = calleeType;
+            } catch (TypeExtractionException &ex) {
+                errorExit(ex.what() + currentNodeInfoStr());
+            }
+
             if (!calleeType->isCallable) {
                 errorExit("type `" + calleeType->name + "` is not callable " + currentNodeInfoStr());
             }
@@ -453,34 +356,21 @@ namespace zero {
             }
         }
 
-
-        void addContext(ProgramAstNode *ast) {
-            auto newContext = new TypeInfo("FunContext@" +
-                                           ast->fileName + "(" + to_string(ast->line) + "&" +
-                                           to_string(ast->pos) + ")", 0);
-
-            typeMetadataRepository->registerType(newContext);
-            ast->contextObjectTypeName = newContext->name;
-            if (currentContext() != nullptr)
-                newContext->addProperty("$parent", currentContext());
-            contextStack.push_back(newContext);
-        }
-
         void visitGlobal(ProgramAstNode *program) {
             currentAstNode = program;
-            addContext(program);
+            contextChain.push(program);
 
-            currentContext()->addProperty("$parent", &TypeInfo::ANY);
+            auto currentContext = contextChain.current();
+
+            currentContext->addProperty("$parent", &TypeInfo::ANY);
 
             // native print function
-            currentContext()->addProperty("print", getFunctionType({TypeDescriptorAstNode::from(TypeInfo::ANY.name)},
-                                                                   TypeDescriptorAstNode::from(TypeInfo::T_VOID.name),
-                                                                   true));
+            currentContext->addProperty("print", typeHelper.getFunctionTypeFromFunctionSignature(
+                    {TypeDescriptorAstNode::from(TypeInfo::ANY.name)},
+                    TypeDescriptorAstNode::from(TypeInfo::T_VOID.name),
+                    nullptr, true));
 
-            auto statements = program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(program);
         }
 
         void visitReturn(StatementAstNode *stmt) {
@@ -520,9 +410,22 @@ namespace zero {
                 visitExpression(loop->loopIterationExpression);
             }
 
-            auto statements = loop->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
+            visitProgram(loop->program);
+        }
+
+        void visitNamedFunctions(ProgramAstNode *program) {
+            for (auto &statement: program->statements) {
+                if (statement->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                    currentAstNode = statement;
+                    auto function = statement->namedFunction;
+                    auto functionType = typeHelper.getFunctionTypeFromFunctionAst(function);
+                    function->resolvedType = functionType;
+                    try {
+                        function->memoryIndex = contextChain.current()->addProperty(function->name, functionType, true);
+                    } catch (runtime_error &err) {
+                        errorExit(err.what() + currentNodeInfoStr());
+                    }
+                }
             }
         }
 
@@ -537,65 +440,62 @@ namespace zero {
                 visitLoop(stmt->loop);
             } else if (stmt->type == StatementAstNode::TYPE_VARIABLE_DECLARATION) {
                 visitVariable(stmt->variable);
+            } else if (stmt->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                visitFunction(stmt->namedFunction);
+            }
+        }
+
+        void visitProgram(ProgramAstNode *program) {
+            visitNamedFunctions(program);
+            for (auto stmt: program->statements) {
+                visitStatement(stmt);
             }
         }
 
         void visitIfStatement(IfStatementAstNode *ifStatementAstNode) {
             visitExpression(ifStatementAstNode->expression);
-            auto statements = ifStatementAstNode->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(ifStatementAstNode->program);
+
             if (ifStatementAstNode->elseProgram != nullptr) {
-                statements = ifStatementAstNode->elseProgram->statements;
-                for (auto stmt: *statements) {
-                    visitStatement(stmt);
-                }
+                visitProgram(ifStatementAstNode->elseProgram);
             }
         }
 
         void visitFunction(FunctionAstNode *function) {
+
+            if (function->resolvedType == nullptr) {
+                function->resolvedType = typeHelper.getFunctionTypeFromFunctionAst(function);
+            }
             functionsStack.push_back(function);
             currentAstNode = function;
-            addContext(function->program);
-            addTypeArguments(function->typeArguments);
-            // register arguments to current context
-            for (const auto &piece : *function->arguments) {
-                currentContext()->addProperty(piece.first, typeOrError(piece.second));
-                log.debug("\n\targument `%s`:`%s` added to context %s", piece.first.c_str(),
-                          piece.second->toString().c_str(), currentContext()->name.c_str());
-            }
 
-            // create and register function type
-            vector<TypeDescriptorAstNode *> argTypes;
-            for (const auto &piece : *function->arguments) {
-                argTypes.push_back(piece.second);
-            }
+            contextChain.push(function->program);
 
-            TypeInfo *functionType = getFunctionType(argTypes, function->returnType);
-            for (const auto &typeArg: currentContext()->getTypeArguments()) {
-                functionType->addTypeArgument(typeArg.first, typeArg.second);
+            typeHelper.addTypeArgumentToCurrentContext(function->typeArguments);
+
+            // add arguments to current context as properties
+            for (const auto &piece : *function->arguments) {
+                contextChain.current()->addProperty(piece.first, typeHelper.typeOrError(piece.second));
             }
-            function->resolvedType = functionType;
 
             // visit children
-            auto statements = function->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(function->program);
 
-            //typeParametersStack.pop_back();
-            contextStack.pop_back();
+            contextChain.pop();
             functionsStack.pop_back();
+        }
+
+    public:
+        void extractAndRegister(ProgramAstNode *program) {
+            visitGlobal(program);
         }
     };
 
-    void TypeMetadataExtractor::extractAndRegister(ProgramAstNode *function) {
+    void TypeInfoExtractor::extractAndRegister(ProgramAstNode *function) {
         this->impl->extractAndRegister(function);
     }
 
-    TypeMetadataExtractor::TypeMetadataExtractor() {
+    TypeInfoExtractor::TypeInfoExtractor() {
         this->impl = new Impl();
-        this->impl->typeMetadataRepository = TypeMetadataRepository::getInstance();
     }
 }

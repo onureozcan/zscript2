@@ -49,7 +49,7 @@ namespace zero {
     class ByteCodeGenerator::Impl {
 
     public:
-        TypeMetadataRepository *typeMetadataRepository = nullptr;
+        TypeInfoRepository *typeInfoRepository = nullptr;
 
         Program *generate(ProgramAstNode *programAstNode) {
             return doGenerateCode(programAstNode);
@@ -76,7 +76,7 @@ namespace zero {
 
         map<string, TempVariableAllocator *> tempVariableAllocatorMap;
 
-        void errorExit(const string& error) {
+        void errorExit(const string &error) {
             log.error(error.c_str());
             exit(1);
         }
@@ -101,8 +101,8 @@ namespace zero {
             return tempVariableAllocatorMap[currentContextType];
         }
 
-        TypeInfo *type(const string& name) const {
-            return typeMetadataRepository->findTypeByName(name);
+        TypeInfo *type(const string &name) const {
+            return typeInfoRepository->findTypeByName(name);
         }
 
         static Operator *getOp(string name, int operandCount) {
@@ -149,7 +149,7 @@ namespace zero {
             return sub;
         }
 
-        void generateMovImmediate(const string& immediateData, const string& typeName, unsigned int preferredIndex) {
+        void generateMovImmediate(const string &immediateData, const string &typeName, unsigned int preferredIndex) {
             if (typeName == TypeInfo::INT.name) {
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(MOV_INT)
@@ -188,8 +188,8 @@ namespace zero {
                 auto immediateName = immediatePropertyInfo.first;
                 auto immediateData = immediatePropertyInfo.second;
                 auto immediatePropertyDescriptor = typeInfo->getProperty(immediateName);
-                auto immediateType = immediatePropertyDescriptor->typeInfo;
-                auto preferredIndex = immediatePropertyDescriptor->index;
+                auto immediateType = immediatePropertyDescriptor->firstOverload().type;
+                auto preferredIndex = immediatePropertyDescriptor->firstOverload().index;
 
                 generateMovImmediate(immediateData, immediateType->name, preferredIndex);
             }
@@ -218,10 +218,9 @@ namespace zero {
             generateImmediates(contextObjectType);
 
             // --- function body
-
             for (int i = 0; i < function->arguments->size(); i++) {
                 auto argPair = function->arguments->at(i);
-                auto argIndex = contextObjectType->getProperty(argPair.first)->index;
+                auto argIndex = contextObjectType->getProperty(argPair.first)->firstOverload().index;
                 currentProgram()->addInstruction(
                         (new Instruction())
                                 ->withOpCode(ARG_READ)
@@ -232,9 +231,7 @@ namespace zero {
                 );
             }
 
-            for (auto &stmt:*function->program->statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(function->program);
 
             // ----- exit
 
@@ -260,7 +257,8 @@ namespace zero {
         }
 
         unsigned int visitAtom(AtomicExpressionAstNode *atomic,
-                               unsigned int preferredIndex = 0
+                               unsigned int preferredIndex = 0,
+                               TypeInfo *preferredOverload = nullptr
         ) {
             switch (atomic->atomicType) {
                 case AtomicExpressionAstNode::TYPE_DECIMAL:
@@ -283,19 +281,25 @@ namespace zero {
                     return visitFunction((FunctionAstNode *) atomic, preferredIndex);
                 }
                 case AtomicExpressionAstNode::TYPE_IDENTIFIER: {
+                    auto memoryIndex = atomic->memoryIndex;
+                    if (preferredOverload != nullptr) {
+                        if (atomic->propertyInfo != nullptr) {
+                            memoryIndex = atomic->propertyInfo->indexOfOverloadOrMinusOne(preferredOverload);
+                        }
+                    }
                     if (atomic->memoryDepth == 0) {
                         // in the current frame, simple, say its address relative to current frame
-                        return atomic->memoryIndex;
+                        return memoryIndex;
                     } else {
                         // in a parent frame
                         currentProgram()->addInstruction(
                                 (new Instruction())
                                         ->withOpCode(GET_IN_PARENT)
                                         ->withOp1(atomic->memoryDepth)
-                                        ->withOp2(atomic->memoryIndex)
+                                        ->withOp2(memoryIndex)
                                         ->withDestination(preferredIndex)
                                         ->withComment(
-                                                "getting the value at index " + to_string(atomic->memoryIndex)
+                                                "getting the value at index " + to_string(memoryIndex)
                                                 + " at parent with depth " + to_string(atomic->memoryDepth) +
                                                 " into index " + to_string(preferredIndex) + " in the current frame (" +
                                                 atomic->data + ")"
@@ -323,10 +327,10 @@ namespace zero {
                 );
             }
             currentTempVariableAllocator()->release(tempIndex);
-            auto functionType = functionCall->left->resolvedType;
+            auto functionType = functionCall->preferredCalleeOverload;
             auto opCode = functionType->isNative ? CALL_NATIVE : CALL;
 
-            unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex);
+            unsigned int functionIndex = visitExpression(functionCall->left, preferredIndex, functionType);
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(opCode)
                             ->withOp1(functionIndex)
@@ -620,18 +624,19 @@ namespace zero {
                                         "took " + op->name + " of value at index " + to_string(actualValueIndex) +
                                         "and put it into " + to_string(preferredIndex) + " in the current frame")
                 );
-            } else if (op == &Operator::NOT){
+            } else if (op == &Operator::NOT) {
                 // TODO
             }
             return preferredIndex;
         }
 
         unsigned int visitExpression(ExpressionAstNode *expression,
-                                     unsigned int preferredIndex = 0
+                                     unsigned int preferredIndex = 0,
+                                     TypeInfo *preferredOverload = nullptr
         ) {
             switch (expression->expressionType) {
                 case ExpressionAstNode::TYPE_ATOMIC : {
-                    return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex);
+                    return visitAtom((AtomicExpressionAstNode *) expression, preferredIndex, preferredOverload);
                 }
                 case ExpressionAstNode::TYPE_BINARY: {
                     return visitBinary((BinaryExpressionAstNode *) expression, preferredIndex);
@@ -734,10 +739,8 @@ namespace zero {
             );
             currentTempVariableAllocator()->release(tempIndex);
 
-            auto statements = ifStatementAstNode->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(ifStatementAstNode->program);
+
             if (ifStatementAstNode->elseProgram != nullptr) {
                 currentProgram()->addInstruction(
                         (new Instruction())->withOpCode(JMP)
@@ -747,10 +750,7 @@ namespace zero {
             }
             currentProgram()->addLabel(ifFalseLabel);
             if (ifStatementAstNode->elseProgram != nullptr) {
-                statements = ifStatementAstNode->elseProgram->statements;
-                for (auto stmt: *statements) {
-                    visitStatement(stmt);
-                }
+                visitProgram(ifStatementAstNode->elseProgram);
             }
             currentProgram()->addLabel(ifEndLabel);
         }
@@ -782,10 +782,7 @@ namespace zero {
             );
 
             currentProgram()->addLabel(loopBodyLabel);
-            auto statements = loop->program->statements;
-            for (auto stmt: *statements) {
-                visitStatement(stmt);
-            }
+            visitProgram(loop->program);
 
             currentProgram()->addLabel(loopIterationLabel);
             if (loop->loopIterationExpression != nullptr) {
@@ -852,10 +849,27 @@ namespace zero {
                 visitBreak(stmt);
             } else if (stmt->type == StatementAstNode::TYPE_CONTINUE) {
                 visitContinue(stmt);
-            } else {
+            } else if (stmt->type == StatementAstNode::TYPE_VARIABLE_DECLARATION) {
                 visitVariable(stmt->variable);
             }
             currentTempVariableAllocator()->release(tempIndex);
+        }
+
+        void visitNamedFunctions(ProgramAstNode *program) {
+            auto statements = program->statements;
+            for (auto stmt: statements) {
+                if (stmt->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                    visitFunction(stmt->namedFunction, stmt->namedFunction->memoryIndex);
+                }
+            }
+        }
+
+        void visitProgram(ProgramAstNode *program) {
+            visitNamedFunctions(program);
+            auto statements = program->statements;
+            for (auto stmt: statements) {
+                visitStatement(stmt);
+            }
         }
     };
 
@@ -865,6 +879,6 @@ namespace zero {
 
     ByteCodeGenerator::ByteCodeGenerator() {
         this->impl = new ByteCodeGenerator::Impl();
-        this->impl->typeMetadataRepository = TypeMetadataRepository::getInstance();
+        this->impl->typeInfoRepository = TypeInfoRepository::getInstance();
     }
 }

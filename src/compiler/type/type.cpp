@@ -10,28 +10,78 @@ namespace zero {
     TypeInfo TypeInfo::ANY = TypeInfo(TYPE_LITERAL_ANY, 0);
     TypeInfo TypeInfo::T_VOID = TypeInfo(TYPE_LITERAL_VOID, 0);
 
+    int TypeInfo::PropertyDescriptor::addOverload(TypeInfo *type, int index) {
+        typeInfoIndexMap.push_back({type, index});
+        return index;
+    }
+
+    TypeInfo::PropertyDescriptor::OverloadInfo TypeInfo::PropertyDescriptor::firstOverload() {
+        auto info = OverloadInfo();
+        pair<TypeInfo *, int> &pair = typeInfoIndexMap.front();
+        info.type = pair.first;
+        info.index = pair.second;
+        return info;
+    }
+
+    vector<TypeInfo::PropertyDescriptor::OverloadInfo> TypeInfo::PropertyDescriptor::allOverloads() {
+        auto ret = vector<TypeInfo::PropertyDescriptor::OverloadInfo>();
+        for (auto overload: typeInfoIndexMap) {
+            ret.push_back({
+                                  overload.first,
+                                  overload.second
+                          });
+        }
+        return ret;
+    }
+
+    int TypeInfo::PropertyDescriptor::indexOfOverloadOrMinusOne(TypeInfo *type) {
+        for (auto pair : typeInfoIndexMap) {
+            auto overloadType = pair.first;
+            if (overloadType->equals(type)) {
+                return pair.second;
+            }
+        }
+        return -1;
+    }
+
     class TypeInfo::Impl {
     private:
+        TypeInfo *publicSelf;
         map<string, PropertyDescriptor *> propertiesMap;
         vector<pair<string, TypeInfo *>> typeArguments;
-        vector<TypeInfo*> functionArguments;
+        vector<TypeInfo *> functionArguments;
         vector<pair<string, string>> immediates;
         int indexCounter = 0;
     public:
 
-        unsigned int addProperty(const string &propertyName, TypeInfo *typeInfo) {
+        explicit Impl(TypeInfo *publicSelf) {
+            this->publicSelf = publicSelf;
+        }
+
+        unsigned int addProperty(const string &propertyName, TypeInfo *typeInfo, int overloadable = false) {
             if (propertiesMap.find(propertyName) == propertiesMap.end()) {
                 auto descriptor = new PropertyDescriptor();
                 descriptor->name = propertyName;
-                descriptor->typeInfo = typeInfo;
-                descriptor->index = indexCounter++;
+                descriptor->addOverload(typeInfo, indexCounter++);
                 propertiesMap[propertyName] = descriptor;
-                return descriptor->index;
-            } else if (propertiesMap[propertyName]->typeInfo->name == typeInfo->name) {
-                return propertiesMap[propertyName]->index;
-            } else
-                throw runtime_error("property already defined with a different type : `" + propertyName + "`:`" +
-                                    propertiesMap[propertyName]->typeInfo->name + "`");
+                return descriptor->firstOverload().index;
+            } else if (overloadable) {
+                auto descriptor = propertiesMap[propertyName];
+                int existingIndex = descriptor->indexOfOverloadOrMinusOne(typeInfo);
+                if (existingIndex != -1) {
+                    throw runtime_error("overload of the same kind was already defined!");
+                } else {
+                    descriptor->addOverload(typeInfo, indexCounter++);
+                    return indexCounter - 1;
+                }
+            } else {
+                auto descriptor = propertiesMap[propertyName];
+                auto existingType = descriptor->firstOverload().type;
+                if (existingType->equals(typeInfo)) {
+                    return descriptor->firstOverload().index;
+                }
+            }
+            throw runtime_error("non-overloadable property already defined with a different type");
         }
 
         PropertyDescriptor *getProperty(const string &propertyName) {
@@ -82,24 +132,31 @@ namespace zero {
             this->indexCounter = other->impl->indexCounter;
         }
 
-        static TypeInfo *resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *typeParameters) {
+        static TypeInfo *
+        resolveGenericType(TypeInfo *genericType, const map<string, TypeInfo *> *passedTypeParameters) {
             // non-generic
-            if (typeParameters->empty()) return genericType;
+            if (passedTypeParameters->empty()) return genericType;
             if (genericType->isTypeArgument) {
-                return typeParameters->find(genericType->name)->second;
+                return passedTypeParameters->find(genericType->name)->second;
             } else {
                 auto clone = new TypeInfo(genericType->name, genericType->isCallable, genericType->isNative);
                 // resolve recursively
                 auto properties = genericType->impl->propertiesMap;
-                auto parameters = genericType->impl->typeArguments;
+                auto typeArguments = genericType->impl->typeArguments;
+                auto functionArguments = genericType->impl->functionArguments;
                 auto immediateProperties = genericType->getImmediateProperties();
-                for (const auto &actualParam : parameters) {
-                    auto resolvedParam = resolveGenericType(actualParam.second, typeParameters);
+                for (const auto &actualParam : typeArguments) {
+                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeParameters);
                     clone->addTypeArgument(actualParam.first, resolvedParam);
                 }
                 for (const auto &actualProp: properties) {
-                    auto resolvedPropType = resolveGenericType(actualProp.second->typeInfo, typeParameters);
+                    auto resolvedPropType = resolveGenericType(actualProp.second->firstOverload().type,
+                                                               passedTypeParameters);
                     clone->addProperty(actualProp.first, resolvedPropType);
+                }
+                for (const auto &actualArg: functionArguments) {
+                    auto resolvedArg = resolveGenericType(actualArg, passedTypeParameters);
+                    clone->addFunctionArgument(resolvedArg);
                 }
                 clone->impl->immediates = genericType->impl->immediates;
                 return clone;
@@ -110,19 +167,32 @@ namespace zero {
             functionArguments.push_back(argumentType);
         }
 
-        string toString() {
-            if (typeArguments.empty())
-                return "";
-            string parametersStr = "<";
-            for (auto &param: typeArguments) {
-                parametersStr += param.second->toString() + ",";
-            }
-            parametersStr += ">";
-            return parametersStr;
-        }
-
         vector<TypeInfo *> getFunctionArguments() {
             return functionArguments;
+        }
+
+        bool equals(TypeInfo *other) {
+            return other->toString() == this->toString();
+        }
+
+        string toString() {
+            string parametersStr;
+            string functionArgumentsStr;
+            if (!typeArguments.empty()) {
+                parametersStr = "<";
+                for (auto &param: typeArguments) {
+                    parametersStr += param.second->toString() + ",";
+                }
+                parametersStr += ">";
+            }
+            if (!functionArguments.empty()) {
+                functionArgumentsStr = "(";
+                for (auto &arg: functionArguments) {
+                    functionArgumentsStr += arg->toString() + ",";
+                }
+                functionArgumentsStr += ")";
+            }
+            return publicSelf->name + parametersStr + functionArgumentsStr;
         }
     };
 
@@ -131,11 +201,11 @@ namespace zero {
         this->isCallable = isCallable;
         this->isNative = isNative;
         this->isTypeArgument = isTypeArgument;
-        this->impl = new Impl();
+        this->impl = new Impl(this);
     }
 
-    unsigned int TypeInfo::addProperty(const string &propertyName, TypeInfo *type) {
-        return this->impl->addProperty(propertyName, type);
+    unsigned int TypeInfo::addProperty(const string &propertyName, TypeInfo *type, int overloadable) {
+        return this->impl->addProperty(propertyName, type, overloadable);
     }
 
     TypeInfo::PropertyDescriptor *TypeInfo::getProperty(const string &propertyName) {
@@ -151,19 +221,56 @@ namespace zero {
     }
 
     int TypeInfo::isAssignableFrom(TypeInfo *other) {
-        if (other == &TypeInfo::T_VOID) {
+        auto t1 = this;
+        auto t2 = other;
+        if (this->isTypeArgument) {
+            t1 = this->typeBoundary;
+        }
+        if (other->isTypeArgument) {
+            t2 = other->typeBoundary;
+        }
+        if (t2 == &TypeInfo::T_VOID) {
             // void cannot be assigned to anything
             return 0;
         }
-        if (this == &TypeInfo::ANY) {
+        if (t1 == &TypeInfo::ANY) {
             // anything can be assigned to any
             return 1;
         }
-        if (this == &TypeInfo::DECIMAL) {
+        if (t1 == &TypeInfo::DECIMAL) {
             // int can be auto cast to decimal
-            return other == &TypeInfo::INT || other == &TypeInfo::DECIMAL;
+            return t2 == &TypeInfo::INT || t2 == &TypeInfo::DECIMAL;
         }
-        return other->name == this->name;
+        // check names
+        if (t1->name == t2->name) {
+            // check type arguments
+            auto thisTypeArgs = t1->getTypeArguments();
+            auto otherTypeArgs = t2->getTypeArguments();
+            if (thisTypeArgs.size() == otherTypeArgs.size()) {
+                for (int i = 0; i < otherTypeArgs.size(); i++) {
+                    auto thisArg = thisTypeArgs.at(i);
+                    auto otherArg = otherTypeArgs.at(i);
+                    if (!thisArg.second->isAssignableFrom(otherArg.second)) {
+                        goto end;
+                    }
+                }
+            } else goto end;
+            // check function arguments
+            auto thisFncArgs = t1->getFunctionArguments();
+            auto otherFncArgs = t2->getFunctionArguments();
+            if (thisFncArgs.size() == otherFncArgs.size()) {
+                for (int i = 0; i < thisFncArgs.size(); i++) {
+                    auto thisArg = thisFncArgs.at(i);
+                    auto otherArg = otherFncArgs.at(i);
+                    if (!thisArg->isAssignableFrom(otherArg)) {
+                        goto end;
+                    }
+                }
+            } else goto end;
+        }
+
+        end:
+        return t2->equals(t1);
     }
 
     vector<pair<string, TypeInfo *>> TypeInfo::getTypeArguments() {
@@ -191,7 +298,7 @@ namespace zero {
     }
 
     string TypeInfo::toString() {
-        return name + "" + impl->toString();
+        return impl->toString();
     }
 
     map<string, TypeInfo::PropertyDescriptor *> TypeInfo::getProperties() {
@@ -208,5 +315,9 @@ namespace zero {
 
     vector<TypeInfo *> TypeInfo::getFunctionArguments() {
         return impl->getFunctionArguments();
+    }
+
+    bool TypeInfo::equals(TypeInfo *other) {
+        return impl->equals(other);
     }
 }

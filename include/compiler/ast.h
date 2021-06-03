@@ -5,16 +5,23 @@
 #include "ZParser.h"
 
 #include <compiler/type.h>
+#include <common/logger.h>
 
 using namespace std;
 
 namespace zero {
+
+    static Logger astLogger = Logger("ast_logger");
 
     class BaseAstNode {
     public:
         string fileName;
         int line;
         int pos;
+
+        string errorInfoStr() const {
+            return fileName + to_string(line) + "," + to_string(pos);
+        }
 
         virtual string toString() {
             return string("ast node at " + fileName + to_string(line) + "," + to_string(pos));
@@ -28,7 +35,7 @@ namespace zero {
 
         static TypeDescriptorAstNode *from(ZParser::TypeDescriptorContext *typeDescriptorContext, string fileName);
 
-        static TypeDescriptorAstNode* from(string typeName);
+        static TypeDescriptorAstNode *from(string typeName);
 
         string toString() override;
     };
@@ -42,7 +49,8 @@ namespace zero {
 
         int isLvalue;
 
-        TypeInfo* resolvedType;
+        TypeInfo *resolvedType;
+        TypeInfo::PropertyDescriptor *propertyInfo = nullptr;
 
         static const int TYPE_ATOMIC = 0;
         static const int TYPE_UNARY = 1;
@@ -52,6 +60,10 @@ namespace zero {
         static ExpressionAstNode *from(ZParser::ExpressionContext *expressionContext, string fileName);
 
         string toString() override;
+
+        bool isOverloaded() const {
+            return propertyInfo != nullptr && propertyInfo->allOverloads().size() > 1;
+        }
     };
 
     class BinaryExpressionAstNode : public ExpressionAstNode {
@@ -70,9 +82,11 @@ namespace zero {
     public:
         ExpressionAstNode *left;
         vector<ExpressionAstNode *> *params;
-        vector<TypeDescriptorAstNode*> typeParams;
+        vector<TypeDescriptorAstNode *> typeParams;
 
-        vector<TypeInfo*> resolvedTypeParams;
+        vector<TypeInfo *> resolvedTypeParams;
+
+        TypeInfo *preferredCalleeOverload;
     };
 
     class AtomicExpressionAstNode : public ExpressionAstNode {
@@ -95,9 +109,9 @@ namespace zero {
         unsigned int memoryIndex;
 
         ExpressionAstNode *initialValue;
-        TypeDescriptorAstNode* typeDescriptorAstNode;
+        TypeDescriptorAstNode *typeDescriptorAstNode;
 
-        TypeInfo* resolvedType;
+        TypeInfo *resolvedType;
 
         static VariableAstNode *from(ZParser::VariableDeclarationContext *variableDeclarationContext, string fileName);
 
@@ -108,12 +122,15 @@ namespace zero {
 
     class LoopAstNode;
 
+    class FunctionAstNode;
+
     class StatementAstNode : public BaseAstNode {
     public:
         ExpressionAstNode *expression;
         VariableAstNode *variable;
         IfStatementAstNode *ifStatement;
         LoopAstNode *loop;
+        FunctionAstNode *namedFunction;
         int type;
 
         static const int TYPE_EXPRESSION = 0;
@@ -123,6 +140,7 @@ namespace zero {
         static const int TYPE_LOOP = 4;
         static const int TYPE_BREAK = 5;
         static const int TYPE_CONTINUE = 6;
+        static const int TYPE_NAMED_FUNCTION = 7;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 
@@ -131,7 +149,7 @@ namespace zero {
 
     class ProgramAstNode : public BaseAstNode {
     public:
-        vector<StatementAstNode *> *statements;
+        vector<StatementAstNode *> statements;
 
         string contextObjectTypeName;
 
@@ -164,9 +182,10 @@ namespace zero {
     class FunctionAstNode : public AtomicExpressionAstNode {
     public:
         ProgramAstNode *program;
-        vector<pair<string, TypeDescriptorAstNode*>> *arguments;
-        vector<pair<string, TypeDescriptorAstNode*>> typeArguments;
-        TypeDescriptorAstNode* returnType;
+        vector<pair<string, TypeDescriptorAstNode *>> *arguments;
+        vector<pair<string, TypeDescriptorAstNode *>> typeArguments;
+        TypeDescriptorAstNode *returnType;
+
         // this one is important, let me explain:
         // if a function has a function definition inside, it is perfectly legal for the child function to access variables in the "upper" scope
         // in that case, we cannot simply destroy the parent function context. it is a well-known pattern of memory leak in js
@@ -174,6 +193,7 @@ namespace zero {
         // and we can alloc local variables from the stack rather than the heap area
         // this variable simply says is the function is a "leaf", meaning that does not have any child functions
         int isLeafFunction;
+        string name;
 
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
     };

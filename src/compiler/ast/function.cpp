@@ -15,6 +15,10 @@ namespace zero {
         function->expressionType = TYPE_ATOMIC;
         function->atomicType = TYPE_FUNCTION;
 
+        if (functionContext->name != nullptr) {
+            function->name = functionContext->name->getText();
+        }
+
         function->arguments = new vector<pair<string, TypeDescriptorAstNode *>>();
         for (auto &piece: functionContext->typedIdent()) {
             string argName = piece->ident->getText();

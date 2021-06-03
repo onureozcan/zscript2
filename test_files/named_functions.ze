@@ -1,0 +1,51 @@
+print(test())
+print(test(25))
+print(test("test"))
+print(test("test",25))
+print(test_generic("test_generic"))
+print(test_generic("test_generic", "other"))
+print(test_generic("test_generic", 5))
+print(test_generic<String>("test_generic"))
+print(test_generic<String>("test_generic", "other"))
+print(test_generic<String,int>("test_generic", 5))
+
+fun test():String {
+    return "test " + test_other()
+}
+
+fun test(i:int):String {
+    return "test - overload 1 " + test_other()
+}
+
+fun test(str:String):String {
+    return "test - overload 2 " + test_other("overload 1")
+}
+
+fun test(str:String, i: int):String {
+    return "test - overload 3 " + test_other()
+}
+
+fun <T:Any> test_generic(arg:T):T {
+    var ret: T = arg
+    return ret;
+}
+
+fun <T:Any> test_generic(arg:T, str: String):T {
+    print("test_generic overload 2")
+    var ret: T = arg
+    return ret;
+}
+
+fun <T:Any, K: int> test_generic(arg:T, i: K):T {
+    print("test_generic overload 3")
+    var ret: T = arg
+    return ret;
+}
+
+fun test_other():String {
+    return "test_other"
+}
+
+fun test_other(str: String):String {
+    return "test_other - " + str
+}

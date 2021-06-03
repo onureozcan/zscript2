@@ -14,13 +14,11 @@ namespace zero {
         program->line = programContext->getStart()->getLine();
         program->pos = programContext->getStart()->getCharPositionInLine();
 
-        program->statements = new vector<StatementAstNode *>();
-
         int prevLine = -1;
         for (auto &piece : programContext->statement()) {
             StatementAstNode *statementNode = StatementAstNode::from(piece, fileName);
             if (statementNode != nullptr) {
-                program->statements->push_back(statementNode);
+                program->statements.push_back(statementNode);
                 if (statementNode->line == prevLine) {
                     // TODO: this is grammar's responsibility, fix this
                     programAstLogger.error("found 2 statements at the same line, was not expecting this! at %s, %d,%d",
@@ -36,7 +34,7 @@ namespace zero {
 
     string ProgramAstNode::toString() {
         string statementsStr;
-        for (auto &piece : *statements) statementsStr += piece->toString() + "\n";
+        for (auto &piece : statements) statementsStr += piece->toString() + "\n";
         return statementsStr;
     }
 }

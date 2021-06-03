@@ -13,7 +13,8 @@ program
         ;
 
 statement
-        : (expression
+        : function
+        | expression
         | variableDeclaration
         | ifStatement
         | forLoop
@@ -21,7 +22,6 @@ statement
         | ret=RET expression?
         | BREAK
         | CONTINUE
-        )
         ;
 
 emptyStatement
@@ -46,7 +46,7 @@ ifStatement
         ;
 
 function
-        : (FUN) typeArgumentsBlock? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
+        : (FUN) typeArgumentsBlock? name=IDENT? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
         program
         RCURLY
         ;

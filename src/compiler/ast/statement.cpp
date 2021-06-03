@@ -31,6 +31,12 @@ namespace zero {
             statement->type = TYPE_BREAK;
         } else if (statementContext->CONTINUE() != nullptr) {
             statement->type = TYPE_CONTINUE;
+        } else if (statementContext->function() != nullptr) {
+            statement->type = TYPE_NAMED_FUNCTION;
+            statement->namedFunction = FunctionAstNode::from(statementContext->function(), fileName);
+            if (statement->namedFunction->name.empty()) {
+                astLogger.error("function name expected at %s", statement->errorInfoStr().c_str());
+            }
         } else {
             // empty statement
             free(statement);
@@ -52,8 +58,9 @@ namespace zero {
             return "break";
         } else if (type == TYPE_CONTINUE) {
             return "continue";
-        } else {
+        } else if (type == TYPE_NAMED_FUNCTION) {
+            return namedFunction->toString();
+        } else
             return variable->toString();
-        }
     }
 }
