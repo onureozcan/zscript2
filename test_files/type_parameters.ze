@@ -56,3 +56,23 @@ var parametric_type_parameter_test_implicit_test = generic_fnc(
     }
 )
 print(parametric_type_parameter_test_implicit_test(5))
+
+print("parametric functions can have parametric functions as children")
+
+var generic_fnc_2 = fun <T> (t: T): T {
+
+    var inner_generic_fnc = fun <P> (p: P): P {
+          return p
+    }
+
+    return inner_generic_fnc<T>(t)
+}
+
+
+var inner_generic_fnc_string_test: String = generic_fnc_2("test")
+var inner_generic_fnc_fnc_test: fun<String> = generic_fnc_2(fun():String{
+    return "fnc"
+})
+
+print(inner_generic_fnc_string_test)
+print(inner_generic_fnc_fnc_test())
