@@ -76,12 +76,23 @@ namespace zero {
         stack_pointer++;
     }
 
+    inline void push_no_check(z_value_t value) {
+        value_stack[stack_pointer] = value;
+        stack_pointer++;
+    }
+
     inline z_value_t pop() {
         stack_pointer--;
         if (stack_pointer < 0) {
             vm_log.error("stack underflow!", stack_pointer);
             exit(1);
         }
+        auto ret = value_stack[stack_pointer];
+        return ret;
+    }
+
+    inline z_value_t pop_no_check() {
+        stack_pointer--;
         auto ret = value_stack[stack_pointer];
         return ret;
     }

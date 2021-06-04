@@ -135,14 +135,19 @@ namespace zero {
             vm_log.error("null pointer exception: callee address was null");
             exit(1);
         }
+        if (stack_pointer + 4 > STACK_MAX) {
+            vm_log.error("stack overflow");
+            exit(1);
+        }
+
         // push number of params pushed to stack
-        push(uvalue(op2.uint_vaLue));
+        push_no_check(uvalue(op2.uint_vaLue));
         // push current context pointer
-        push(pvalue(context_object));
+        push_no_check(pvalue(context_object));
         // push requested return index
-        push(uvalue(dest.uint_vaLue));
+        push_no_check(uvalue(dest.uint_vaLue));
         // push parent context ptr;
-        push(pvalue(fnc_ref->parent_context_ptr));
+        push_no_check(pvalue(fnc_ref->parent_context_ptr));
 
         return (uintptr_t) fnc_ref->instruction_index;
     }
@@ -373,18 +378,18 @@ namespace zero {
         }
 
         stack_pointer = base_pointer;
-        base_pointer = pop().uint_value;
+        base_pointer = pop_no_check().uint_value;
 
-        auto return_index_in_parent = pop().uint_value;
+        auto return_index_in_parent = pop_no_check().uint_value;
         auto return_index_in_current = dest.uint_vaLue;
         auto current_context_object = context_object;
-        context_object = static_cast<z_value_t *>(pop().ptr_value);
+        context_object = static_cast<z_value_t *>(pop_no_check().ptr_value);
         auto parent_context_object = context_object;
         if (return_index_in_current) {
             // move return value
             parent_context_object[return_index_in_parent] = current_context_object[return_index_in_current];
         }
-        auto number_of_params_pushed_to_stack = pop().uint_value;
+        auto number_of_params_pushed_to_stack = pop_no_check().uint_value;
         stack_pointer -= number_of_params_pushed_to_stack;
         return 0;
     }
