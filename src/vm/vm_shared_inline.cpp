@@ -61,7 +61,7 @@ namespace zero {
         return val;
     }
 
-    inline z_value_t fvalue(unsigned int instruction_index, z_value_t *context_object) {
+    inline z_value_t fvalue(uint64_t instruction_index, z_value_t *context_object) {
         z_value_t val;
         val.ptr_value = object_manager_create_fn_ref(instruction_index, context_object);
         return val;

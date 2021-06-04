@@ -1,10 +1,12 @@
 #!/bin/bash
 
 binary=./cmake-build-debug-mingw/zero.exe
+binary_linux=./cmake-build-debug-remote-host/zero
+
 
 test() {
   echo "=============================================================="
-  echo "testing $1 ..."
+  echo "testing $1 ... ($binary)"
 
   local test_file_path="test_files/$1.ze"
   local expected_content_path="test_expected/$1.txt"
@@ -32,6 +34,10 @@ test() {
 
   rm tmp.txt
 }
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  binary=$binary_linux
+fi
 
 test "hello"
 test "basic_printing"

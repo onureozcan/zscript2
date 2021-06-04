@@ -21,7 +21,7 @@ namespace zero {
         // when some other function, say C, calls B, it has to use the value created by A, because there is no other way for it to access B
         // and this way, upon calling B, C pushes parent context, which is A to the stack
         void* parent_context_ptr;
-        unsigned int instruction_index; // not the pointer but the index, like 54th instruction
+        uint64_t instruction_index; // not the pointer but the index, like 54th instruction
     } z_fnc_ref_t;
 
     typedef int z_object_type_info;
@@ -34,7 +34,7 @@ namespace zero {
     static const int VM_VALUE_TYPE_FUNCTION_REF = VM_VALUE_TYPE_STRING + 1;
     static const int VM_VALUE_TYPE_TYPE_OBJECT = VM_VALUE_TYPE_FUNCTION_REF + 1;
 
-    z_fnc_ref_t* object_manager_create_fn_ref(unsigned int instruction_index, z_value_t *context_object);
+    z_fnc_ref_t* object_manager_create_fn_ref(uint64_t instruction_index, z_value_t *context_object);
 
     void object_manager_register_string(z_value_t value);
 

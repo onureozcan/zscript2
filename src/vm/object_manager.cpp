@@ -10,7 +10,7 @@ namespace zero {
 
     map<uintptr_t, z_object_type_info> type_knowledge_map;
 
-    z_fnc_ref_t *object_manager_create_fn_ref(unsigned int instruction_index, z_value_t *context_object) {
+    z_fnc_ref_t *object_manager_create_fn_ref(uint64_t instruction_index, z_value_t *context_object) {
         auto fun_ref = (z_fnc_ref_t *) malloc(sizeof(z_fnc_ref_t));
         if (fun_ref == nullptr) {
             object_man_log.error("could not allocate memory for a function reference");
