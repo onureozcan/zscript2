@@ -352,9 +352,13 @@ namespace zero {
     }
 
     uint64_t z_handler_GET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {
-        auto object = OP1_PTR;
-
-        *DESTINATION_PTR = object[op2.uint_vaLue];
+        auto value1 = *OP1_PTR;
+        if (object_manager_is_null(value1)) {
+            vm_log.error("null pointer exception: object to get value from is null");
+            exit(1);
+        }
+        auto object = (uintptr_t) value1.ptr_value;
+        *DESTINATION_PTR = *(z_value_t *) (object + op2.uint_vaLue);
         return 0;
     }
 

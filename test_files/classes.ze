@@ -2,9 +2,12 @@ class BasicClass {
     var somePrp: int = 10
 
     fun someFnc() : String {
-        return "some function inside a class"
+        return "some function inside a class instance"
     }
 }
 
 var basicClassInstance = BasicClass()
+
 print(basicClassInstance.somePrp)
+print(basicClassInstance.someFnc())
+

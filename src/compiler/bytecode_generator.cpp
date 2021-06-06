@@ -240,7 +240,8 @@ namespace zero {
 
             currentProgram()->addInstructionAt(
                     (new Instruction())->withOpCode(
-                                    currentFunctionAst()->isLeafFunction ? FN_ENTER_STACK : FN_ENTER_HEAP)
+                                    (!currentFunctionAst()->isLeafFunction && !currentFunctionAst()->isClassAllocator)
+                                    ? FN_ENTER_HEAP : FN_ENTER_STACK)
                             ->withOp1(functionContextObjectSize)
                             ->withComment("allocate call frame that is " + to_string(functionContextObjectSize) +
                                           " values big"),
