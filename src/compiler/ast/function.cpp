@@ -19,17 +19,18 @@ namespace zero {
             function->name = functionContext->name->getText();
         }
 
-        function->arguments = new vector<pair<string, TypeDescriptorAstNode *>>();
         for (auto &piece: functionContext->typedIdent()) {
             string argName = piece->ident->getText();
             auto typeAst = piece->type == nullptr ?
                            TypeDescriptorAstNode::from(TypeInfo::ANY.name) : TypeDescriptorAstNode::from(piece->type,
                                                                                                          fileName);
-            function->arguments->push_back({argName, typeAst});
+            function->arguments.push_back({argName, typeAst});
         }
         if (functionContext->type != nullptr) {
+            function->hasExplicitReturnType = true;
             function->returnType = TypeDescriptorAstNode::from(functionContext->type, fileName);
         } else {
+            function->hasExplicitReturnType = false;
             function->returnType = TypeDescriptorAstNode::from(TypeInfo::T_VOID.name);
         }
 

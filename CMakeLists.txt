@@ -73,4 +73,4 @@ else()
     target_link_libraries(zero antlr4_static)
 endif()
 
-set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")
+#set_target_properties(zero PROPERTIES COMPILE_FLAGS " -O3")

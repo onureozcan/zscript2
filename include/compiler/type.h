@@ -29,19 +29,22 @@ namespace zero {
 
             class OverloadInfo {
             public:
-                TypeInfo* type;
+                TypeInfo *type;
                 int index;
             };
 
-            int indexOfOverloadOrMinusOne(TypeInfo* type);
+            int indexOfOverloadOrMinusOne(TypeInfo *type);
+
             OverloadInfo firstOverload();
+
             vector<OverloadInfo> allOverloads();
-            int addOverload(TypeInfo* type, int index);
+
+            int addOverload(TypeInfo *type, int index);
         };
 
         string name;
 
-        TypeInfo* typeBoundary = nullptr;
+        TypeInfo *typeBoundary = nullptr;
         int isTypeArgument;
 
         int isCallable;
@@ -55,33 +58,33 @@ namespace zero {
         static TypeInfo ANY;
         static TypeInfo T_VOID;
 
-        explicit TypeInfo(string name, int isCallable, int isNative = 0, int isTypeArgument = 0);
+        explicit TypeInfo(string name, int isCallable = 0, int isNative = 0, int isTypeArgument = 0);
 
         TypeInfo *resolveGenericType(const map<string, TypeInfo *> *passedTypeParametersMap);
 
-        void addTypeArgument(const string& typeArgName, TypeInfo *type);
+        void addTypeArgument(const string &typeArgName, TypeInfo *type);
 
         vector<pair<string, TypeInfo *>> getTypeArguments();
 
-        vector<TypeInfo*> getFunctionArguments();
+        vector<TypeInfo *> getFunctionArguments();
 
-        unsigned int addProperty(const string& propertyName, TypeInfo *type, int overloadable = false);
+        unsigned int addProperty(const string &propertyName, TypeInfo *type, int overloadable = false);
 
         int isAssignableFrom(TypeInfo *other);
 
         int getPropertyCount();
 
-        PropertyDescriptor *getProperty(const string& propertyName);
+        PropertyDescriptor *getProperty(const string &propertyName);
 
-        void removeProperty(const string& basicString);
+        void removeProperty(const string &basicString);
 
-        unsigned int addImmediate(const string& basicString, TypeInfo *pInfo);
+        unsigned int addImmediate(const string &basicString, TypeInfo *pInfo);
 
-        PropertyDescriptor *getImmediate(const string& immediateName, TypeInfo *type);
+        PropertyDescriptor *getImmediate(const string &immediateName, TypeInfo *type);
 
         vector<pair<string, string>> getImmediateProperties();
 
-        map<string,PropertyDescriptor*> getProperties();
+        map<string, PropertyDescriptor *> getProperties();
 
         void clonePropertiesFrom(TypeInfo *other);
 

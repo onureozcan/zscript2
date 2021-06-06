@@ -1,0 +1,44 @@
+class<T> ListNode {
+    var data: T
+    var next: ListNode<T>
+
+    fun ListNode(data: T) {
+        this.data = data
+    }
+}
+
+var head = ListNode<int>()
+
+class<T> LinkedList {
+    var head: ListNode<T>
+    var size: int = 0
+
+    fun add(item: T) {
+        var current = head;
+        if (current == null) {
+            head = ListNode(item)
+            return
+        }
+        for (var i = 0; i < size; i=i+1) {
+            current = current->next
+        }
+        current->next = ListNode(item)
+    }
+
+    fun get(i: int): T {
+        var current = head;
+        for (var i = 0; i < i; i=i+1) {
+            if (current == null) {
+                return null
+            }
+            current = current->next
+        }
+        return current->data
+    }
+}
+
+var list = LinkedList<int>();
+list.add(1)
+list.add(2)
+list.get(1)
+

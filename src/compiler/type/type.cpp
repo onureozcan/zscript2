@@ -82,7 +82,7 @@ namespace zero {
                     return descriptor->firstOverload().index;
                 }
             }
-            throw runtime_error("non-overloadable property already defined with a different type");
+            throw runtime_error("non-overloadable property already defined with a different type : " + propertyName);
         }
 
         PropertyDescriptor *getProperty(const string &propertyName) {
@@ -147,13 +147,10 @@ namespace zero {
                 auto functionArguments = genericType->impl->functionArguments;
                 auto immediateProperties = genericType->getImmediateProperties();
                 for (const auto &actualParam : typeArguments) {
-                    auto resolvedParam = resolveGenericType(actualParam.second, passedTypeParameters);
-                    clone->addTypeArgument(actualParam.first, resolvedParam);
+                    clone->addTypeArgument(actualParam.first, actualParam.second);
                 }
                 for (const auto &actualProp: properties) {
-                    auto resolvedPropType = resolveGenericType(actualProp.second->firstOverload().type,
-                                                               passedTypeParameters);
-                    clone->addProperty(actualProp.first, resolvedPropType);
+                    clone->impl->typeArguments = typeArguments;
                 }
                 for (const auto &actualArg: functionArguments) {
                     auto resolvedArg = resolveGenericType(actualArg, passedTypeParameters);

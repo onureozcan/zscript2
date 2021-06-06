@@ -123,7 +123,7 @@ namespace zero {
                 if (atom->atomicType == AtomicExpressionAstNode::TYPE_FUNCTION) {
                     auto function = ((FunctionAstNode *) atom);
                     string argsStr;
-                    for (const auto &piece : *function->arguments) {
+                    for (const auto &piece : function->arguments) {
                         argsStr += piece.first + ":" + piece.second->toString() + ",";
                     }
                     string typeParametersStr;

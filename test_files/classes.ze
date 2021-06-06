@@ -1,0 +1,9 @@
+class BasicClass {
+    var somePrp: int = 10
+
+    fun someFnc() : String {
+        return "some function inside a class"
+    }
+}
+
+var basicClassInstance = BasicClass();

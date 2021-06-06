@@ -112,7 +112,6 @@ namespace zero {
         Program *doGenerateCode(ProgramAstNode *programAstNode) {
             auto globalFnc = new FunctionAstNode();
             globalFnc->program = programAstNode;
-            globalFnc->arguments = new vector<pair<string, TypeDescriptorAstNode *>>();
             globalFnc->fileName = programAstNode->fileName;
             globalFnc->line = 0;
             globalFnc->pos = 0;
@@ -218,13 +217,13 @@ namespace zero {
             generateImmediates(contextObjectType);
 
             // --- function body
-            for (int i = 0; i < function->arguments->size(); i++) {
-                auto argPair = function->arguments->at(i);
+            for (int i = 0; i < function->arguments.size(); i++) {
+                auto argPair = function->arguments.at(i);
                 auto argIndex = contextObjectType->getProperty(argPair.first)->firstOverload().index;
                 currentProgram()->addInstruction(
                         (new Instruction())
                                 ->withOpCode(ARG_READ)
-                                ->withOp1((unsigned int) (function->arguments->size() - i - 1))
+                                ->withOp1((unsigned int) (function->arguments.size() - i - 1))
                                 ->withDestination(argIndex)
                                 ->withComment(
                                         "getting argument at index " + to_string(i) + " into " + to_string(argIndex))
@@ -876,6 +875,16 @@ namespace zero {
             currentTempVariableAllocator()->release(tempIndex);
         }
 
+        void visitClasses(ProgramAstNode *program) {
+            auto statements = program->statements;
+            for (auto stmt: statements) {
+                if (stmt->type == StatementAstNode::TYPE_CLASS_DECLARATION) {
+                    visitFunction(stmt->classDeclaration->allocationFunction,
+                                  stmt->classDeclaration->allocationFunction->memoryIndex);
+                }
+            }
+        }
+
         void visitNamedFunctions(ProgramAstNode *program) {
             auto statements = program->statements;
             for (auto stmt: statements) {
@@ -886,6 +895,7 @@ namespace zero {
         }
 
         void visitProgram(ProgramAstNode *program) {
+            visitClasses(program);
             visitNamedFunctions(program);
             auto statements = program->statements;
             for (auto stmt: statements) {

@@ -52,10 +52,17 @@ namespace zero {
         auto clone = new TypeInfo(foundType->name, foundType->isCallable, foundType->isNative);
         clone->clonePropertiesFrom(foundType);
 
+        auto requiredArgsCount = foundType->getTypeArguments().size();
+        if (requiredArgsCount != paramCount) {
+            throw TypeExtractionException("type " + foundType->name + " requires "
+                                          + to_string(requiredArgsCount) + " type args. given " +
+                                          to_string(paramCount));
+        }
+
         // 2- check that every type parameters in the ast exists
         for (int i = 0; i < paramCount; i++) {
             auto paramAsAst = typeAst->parameters.at(i);
-            auto paramAsType = typeOrError(paramAsAst);
+            auto paramAsType = typeOrError(paramAsAst, typeArguments);
             auto typeBoundaryPair = foundType->getTypeArguments().at(i);
             auto typeBoundary = typeBoundaryPair.second;
             auto typeBoundaryIdent = typeBoundaryPair.first;
@@ -126,7 +133,7 @@ namespace zero {
         }
 
         vector<TypeDescriptorAstNode *> argTypes;
-        for (const auto &piece : *function->arguments) {
+        for (const auto &piece : function->arguments) {
             argTypes.push_back(piece.second);
         }
 
@@ -138,6 +145,21 @@ namespace zero {
             auto typeArg = typeArguments[name];
             functionType->addTypeArgument(name, typeArg);
         }
+        return functionType;
+    }
+
+    TypeInfo *TypeHelper::getClassLevelFunctionTypeFromFunctionAst(
+            FunctionAstNode *function, map<string,
+            TypeInfo *> classTypeArguments) {
+
+        vector<TypeDescriptorAstNode *> argTypes;
+        for (const auto &piece : function->arguments) {
+            argTypes.push_back(piece.second);
+        }
+
+        TypeInfo *functionType = getFunctionTypeFromFunctionSignature(argTypes,
+                                                                      function->returnType,
+                                                                      &classTypeArguments);
         return functionType;
     }
 
@@ -223,7 +245,6 @@ namespace zero {
                 filteredByFunctionParameters.push_back(calleeType);
         }
 
-
         if (filteredByFunctionParameters.size() == 1) {
             return filteredByFunctionParameters.at(0);
         }
@@ -236,5 +257,42 @@ namespace zero {
                                           "\npossibilities: [" + possibilitiesStr + "]");
         }
         throw TypeExtractionException("no possible overload is found");
+    }
+
+    TypeInfo *TypeHelper::getClassType(ClassDeclarationAstNode *class_) {
+
+        auto allocationFunction = class_->allocationFunction;
+        contextChain->push(allocationFunction->program, class_->name);
+        auto classType = typeInfoRepository->findTypeByName(allocationFunction->program->contextObjectTypeName);
+
+        for (auto &piece: allocationFunction->typeArguments) {
+            auto name = piece.first;
+            auto typeAst = piece.second;
+            auto typeBoundary = typeOrError(typeAst);
+            classType->addTypeArgument(name, typeBoundary);
+        }
+
+        allocationFunction->resolvedType = getFunctionTypeFromFunctionAst(allocationFunction);
+
+
+        for (auto &stmt: class_->allocationFunction->program->statements) {
+            if (stmt->type == StatementAstNode::TYPE_VARIABLE_DECLARATION) {
+                auto name = stmt->variable->identifier;
+                auto typeAst = stmt->variable->typeDescriptorAstNode;
+                if (typeAst == nullptr) {
+                    throw TypeExtractionException("class level variables must have explicit typing");
+                }
+                auto type = typeOrError(typeAst);
+                classType->addProperty(name, type);
+            } else if (stmt->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
+                auto function = stmt->namedFunction;
+                auto functionType = getFunctionTypeFromFunctionAst(function);
+                function->resolvedType = functionType;
+                function->memoryIndex = classType->addProperty(function->name, functionType, true);
+            }
+        }
+
+        contextChain->pop();
+        return allocationFunction->resolvedType;
     }
 }

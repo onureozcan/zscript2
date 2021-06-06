@@ -85,8 +85,10 @@ namespace zero {
                     if (expectedType->isAssignableFrom(initializedType)) {
                         selectedType = expectedType;
                     } else {
-                        errorExit("cannot assign `" + initializedType->toString() + "` to `" + expectedType->toString() + "`" +
-                                  currentNodeInfoStr());
+                        errorExit(
+                                "cannot assign `" + initializedType->toString() + "` to `" + expectedType->toString() +
+                                "`" +
+                                currentNodeInfoStr());
                     }
                 } else {
                     selectedType = initializedType;
@@ -433,6 +435,18 @@ namespace zero {
             }
         }
 
+        void visitClasses(ProgramAstNode *program) {
+            for (auto &statement: program->statements) {
+                if (statement->type == StatementAstNode::TYPE_CLASS_DECLARATION) {
+                    auto classDeclaration = statement->classDeclaration;
+                    currentAstNode = classDeclaration;
+                    auto classAllocatorFncType = typeHelper.getClassType(classDeclaration);
+                    classDeclaration->allocationFunction->memoryIndex = contextChain.current()->addProperty(
+                            classDeclaration->name, classAllocatorFncType);
+                }
+            }
+        }
+
         void visitStatement(StatementAstNode *stmt) {
             if (stmt->type == StatementAstNode::TYPE_EXPRESSION) {
                 visitExpression(stmt->expression);
@@ -446,10 +460,14 @@ namespace zero {
                 visitVariable(stmt->variable);
             } else if (stmt->type == StatementAstNode::TYPE_NAMED_FUNCTION) {
                 visitFunction(stmt->namedFunction);
+            } else if (stmt->type == StatementAstNode::TYPE_CLASS_DECLARATION) {
+                visitFunction(stmt->classDeclaration->allocationFunction);
             }
         }
 
         void visitProgram(ProgramAstNode *program) {
+            // hoisted elements
+            visitClasses(program);
             visitNamedFunctions(program);
             for (auto stmt: program->statements) {
                 visitStatement(stmt);
@@ -478,7 +496,7 @@ namespace zero {
             typeHelper.addTypeArgumentToCurrentContext(function->typeArguments);
 
             // add arguments to current context as properties
-            for (const auto &piece : *function->arguments) {
+            for (const auto &piece : function->arguments) {
                 contextChain.current()->addProperty(piece.first, typeHelper.typeOrError(piece.second));
             }
 

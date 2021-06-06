@@ -52,7 +52,7 @@ namespace zero {
     public:
         TypeInfo *current();
 
-        void push(ProgramAstNode *ast);
+        void push(ProgramAstNode *ast, string name = "");
 
         void pop();
 
@@ -61,7 +61,7 @@ namespace zero {
         TypeInfo *at(int depth);
     };
 
-    class   TypeHelper {
+    class TypeHelper {
     private:
         TypeInfoRepository *typeInfoRepository = TypeInfoRepository::getInstance();
         ContextChain *contextChain;
@@ -90,6 +90,12 @@ namespace zero {
 
         TypeInfo *getFunctionTypeFromFunctionAst(FunctionAstNode *function);
 
-        TypeInfo *getOverloadToCall(ExpressionAstNode* callee, vector<TypeInfo*> *typeParameters,vector<TypeInfo*> *functionParameters);
+        TypeInfo *getOverloadToCall(ExpressionAstNode *callee, vector<TypeInfo *> *typeParameters,
+                                    vector<TypeInfo *> *functionParameters);
+
+        TypeInfo *getClassType(ClassDeclarationAstNode *pNode);
+
+        TypeInfo *
+        getClassLevelFunctionTypeFromFunctionAst(FunctionAstNode *function, map<string, TypeInfo *> classTypeArguments);
     };
 }

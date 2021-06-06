@@ -7,11 +7,13 @@ namespace zero {
         return contextStack.back();
     }
 
-    void ContextChain::push(ProgramAstNode *ast) {
-        auto newContext = new TypeInfo("FunContext@" +
-                                       ast->fileName + "(" + to_string(ast->line) + "&" +
-                                       to_string(ast->pos) + ")", 0);
-
+    void ContextChain::push(ProgramAstNode *ast, string name) {
+        if (name.empty()) {
+            name = "FunContext@" +
+                   ast->fileName + "(" + to_string(ast->line) + "&" +
+                   to_string(ast->pos) + ")";
+        }
+        auto newContext = new TypeInfo(name, 0);
         typeInfoRepository->registerType(newContext);
         ast->contextObjectTypeName = newContext->name;
         if (current() != nullptr)

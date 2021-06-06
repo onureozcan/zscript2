@@ -14,6 +14,7 @@ program
 
 statement
         : function
+        | classDeclaration
         | expression
         | variableDeclaration
         | ifStatement
@@ -45,8 +46,15 @@ ifStatement
           )?
         ;
 
+classDeclaration
+        : CLASS typeArgumentsBlock? name=IDENT
+        LCURLY
+        (variableDeclaration | function)*
+        RCURLY
+        ;
+
 function
-        : (FUN) typeArgumentsBlock? name=IDENT? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
+        : FUN typeArgumentsBlock? name=IDENT? LPAREN ((typedIdent) (COMMA (typedIdent))*)? RPAREN (DOUBLE_DOT type=typeDescriptor)? LCURLY
         program
         RCURLY
         ;

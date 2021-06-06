@@ -37,6 +37,9 @@ namespace zero {
             if (statement->namedFunction->name.empty()) {
                 astLogger.error("function name expected at %s", statement->errorInfoStr().c_str());
             }
+        } else if (statementContext->classDeclaration() != nullptr) {
+            statement->type = TYPE_CLASS_DECLARATION;
+            statement->classDeclaration = ClassDeclarationAstNode::from(statementContext->classDeclaration(), fileName);
         } else {
             // empty statement
             free(statement);
@@ -60,6 +63,8 @@ namespace zero {
             return "continue";
         } else if (type == TYPE_NAMED_FUNCTION) {
             return namedFunction->toString();
+        } else if (type == TYPE_CLASS_DECLARATION) {
+            return classDeclaration->toString();
         } else
             return variable->toString();
     }

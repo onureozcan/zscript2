@@ -125,6 +125,8 @@ namespace zero {
 
     class FunctionAstNode;
 
+    class ClassDeclarationAstNode;
+
     class StatementAstNode : public BaseAstNode {
     public:
         ExpressionAstNode *expression;
@@ -132,6 +134,7 @@ namespace zero {
         IfStatementAstNode *ifStatement;
         LoopAstNode *loop;
         FunctionAstNode *namedFunction;
+        ClassDeclarationAstNode *classDeclaration;
         int type;
 
         static const int TYPE_EXPRESSION = 0;
@@ -142,6 +145,7 @@ namespace zero {
         static const int TYPE_BREAK = 5;
         static const int TYPE_CONTINUE = 6;
         static const int TYPE_NAMED_FUNCTION = 7;
+        static const int TYPE_CLASS_DECLARATION = 8;
 
         static StatementAstNode *from(ZParser::StatementContext *statementContext, string fileName);
 
@@ -183,7 +187,7 @@ namespace zero {
     class FunctionAstNode : public AtomicExpressionAstNode {
     public:
         ProgramAstNode *program;
-        vector<pair<string, TypeDescriptorAstNode *>> *arguments;
+        vector<pair<string, TypeDescriptorAstNode *>> arguments;
         vector<pair<string, TypeDescriptorAstNode *>> typeArguments;
         TypeDescriptorAstNode *returnType;
 
@@ -196,6 +200,25 @@ namespace zero {
         int isLeafFunction;
         string name;
 
+        int hasExplicitReturnType;
+
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
+    };
+
+    class ClassDeclarationAstNode : public BaseAstNode {
+    public:
+        /*vector<FunctionAstNode *> namedFunctions;
+        vector<VariableAstNode *> variableDeclarations;
+        vector<pair<string, TypeDescriptorAstNode *>> typeArguments;
+        TypeInfo *resolvedType;*/
+
+        // this will be invoked to allocate memory and initialize fields
+        FunctionAstNode* allocationFunction;
+
+        string name;
+
+        static ClassDeclarationAstNode *from(ZParser::ClassDeclarationContext *classContext, string fileName);
+
+        string toString() override;
     };
 }
