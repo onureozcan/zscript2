@@ -4,6 +4,12 @@
 #include <map>
 #include <vector>
 
+#define RETURN_MODE_NULL 0
+#define RETURN_MODE_INT_0 1
+#define RETURN_MODE_DECIMAL_0 2
+#define RETURN_MODE_CLASS_INSTANCE 3
+#define RETURN_MODE_VOID 4
+
 using namespace std;
 
 namespace zero {
@@ -83,7 +89,7 @@ namespace zero {
     } InstructionDescriptor;
 
     static const map<int, InstructionDescriptor> instructionDescriptionTable = {
-            {RET,             {OTHER,          UNUSED,      UNUSED,  IMM_INT}},
+            {RET,             {OTHER,          IMM_INT,     UNUSED,  IMM_INT}},
             {SET_IN_OBJECT,   {OTHER,          IMM_INT,     IMM_INT, INDEX}},
             {SET_IN_PARENT,   {OTHER,          IMM_INT,     INDEX,   INDEX}},
             {GET_IN_OBJECT,   {OTHER,          INDEX,       INDEX,   INDEX}},

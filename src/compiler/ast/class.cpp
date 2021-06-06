@@ -60,7 +60,8 @@ namespace zero {
             allocationProgram->statements.push_back(statement);
         }
 
-        allocationFunction->returnType = returnTypeAst;//TypeDescriptorAstNode::from(TypeInfo::T_VOID.name);
+        allocationFunction->returnType = returnTypeAst;
+        allocationFunction->isClassAllocator = true;
         classDeclaration->allocationFunction = allocationFunction;
         return classDeclaration;
     }

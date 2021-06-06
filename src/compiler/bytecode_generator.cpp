@@ -110,13 +110,15 @@ namespace zero {
         }
 
         Program *doGenerateCode(ProgramAstNode *programAstNode) {
-            auto globalFnc = new FunctionAstNode();
-            globalFnc->program = programAstNode;
-            globalFnc->fileName = programAstNode->fileName;
-            globalFnc->line = 0;
-            globalFnc->pos = 0;
+            auto mainFnc = new FunctionAstNode();
+            mainFnc->program = programAstNode;
+            mainFnc->fileName = programAstNode->fileName;
+            mainFnc->line = 0;
+            mainFnc->pos = 0;
+            mainFnc->resolvedType = new TypeInfo("mainFnc");
+            mainFnc->resolvedType->addFunctionArgument(&TypeInfo::T_VOID);
 
-            visitFunction(globalFnc);
+            visitFunction(mainFnc);
 
             rootProgram = new Program(programAstNode->fileName);
             for (auto &sub: subroutinePrograms) {
@@ -244,8 +246,22 @@ namespace zero {
                                           " values big"),
                     *programEntryLabel);
 
+            unsigned int returnMode = RETURN_MODE_NULL;
+
+            auto returnType = function->resolvedType->getFunctionArguments().back();
+            if (returnType->equals(&TypeInfo::INT)) {
+                returnMode = RETURN_MODE_INT_0;
+            } else if (returnType->equals(&TypeInfo::DECIMAL)) {
+                returnMode = RETURN_MODE_DECIMAL_0;
+            } else if (returnType->equals(&TypeInfo::T_VOID)) {
+                returnMode = RETURN_MODE_VOID;
+            } else if (function->isClassAllocator) {
+                returnMode = RETURN_MODE_CLASS_INSTANCE;
+            }
+
             currentProgram()->addInstruction(
                     (new Instruction())->withOpCode(RET)
+                            ->withOp1(returnMode)
                             ->withDestination((unsigned) 0)
                             ->withComment("redundant null-return for non-returning functions "));
 

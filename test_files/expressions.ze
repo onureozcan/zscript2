@@ -46,3 +46,17 @@ print(test4) // null
 var test5:fun<Void> = null
 print(test5) // null
 
+// a function should return default value
+fun testNull(): String {
+}
+
+fun testInt_0(): int {
+}
+
+fun testDecimal_0(): decimal {
+}
+
+print(testNull()) // null
+print(testInt_0()) // 0
+print(testDecimal_0()) // 0.0
+

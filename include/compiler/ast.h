@@ -202,6 +202,8 @@ namespace zero {
 
         int hasExplicitReturnType;
 
+        int isClassAllocator;
+
         static FunctionAstNode *from(ZParser::FunctionContext *functionContext, string fileName);
     };
 
@@ -213,7 +215,7 @@ namespace zero {
         TypeInfo *resolvedType;*/
 
         // this will be invoked to allocate memory and initialize fields
-        FunctionAstNode* allocationFunction;
+        FunctionAstNode *allocationFunction;
 
         string name;
 

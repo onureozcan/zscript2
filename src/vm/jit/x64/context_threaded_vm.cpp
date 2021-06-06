@@ -391,7 +391,29 @@ namespace zero {
         if (return_index_in_current) {
             // move return value
             parent_context_object[return_index_in_parent] = current_context_object[return_index_in_current];
+        } else {
+            // special return mode
+            auto mode = op1.uint_vaLue;
+            z_value_t return_value;
+            switch (mode) {
+                case RETURN_MODE_NULL:
+                    return_value = nvalue();
+                    break;
+                case RETURN_MODE_INT_0:
+                    return_value = ivalue(0);
+                    break;
+                case RETURN_MODE_DECIMAL_0:
+                    return_value = dvalue(0);
+                    break;
+                case RETURN_MODE_CLASS_INSTANCE:
+                    return_value = pvalue(current_context_object);
+                    break;
+                default:
+                    goto end;
+            }
+            parent_context_object[return_index_in_parent] = return_value;
         }
+        end:
         auto number_of_params_pushed_to_stack = pop_no_check().uint_value;
         stack_pointer -= number_of_params_pushed_to_stack;
         return 0;
