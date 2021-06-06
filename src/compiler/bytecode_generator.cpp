@@ -472,12 +472,34 @@ namespace zero {
             return preferredIndex;
         }
 
+        unsigned int visitDot(BinaryExpressionAstNode *binary,
+                              unsigned int preferredIndex = 0) {
+            unsigned int tempValueIndex1 = currentTempVariableAllocator()->alloc();
+            unsigned int tempValueIndex2 = currentTempVariableAllocator()->alloc();
+
+            unsigned int actualValueIndex1 = visitExpression(binary->left, tempValueIndex1);
+
+            currentTempVariableAllocator()->release(tempValueIndex1);
+
+            auto objectIndex = actualValueIndex1;
+            auto valueIndexInObject = binary->right->memoryIndex;
+
+            currentProgram()->addInstruction((new Instruction())
+                                                     ->withOpCode(GET_IN_OBJECT)
+                                                     ->withOp1(objectIndex)
+                                                     ->withOp2(valueIndexInObject)
+                                                     ->withDestination(preferredIndex)
+                                                     ->withComment("non-virtual object access : " + binary->toString())
+            );
+            return preferredIndex;
+        }
+
         unsigned int visitBinary(BinaryExpressionAstNode *binary,
                                  unsigned int preferredIndex = 0
         ) {
             Operator *op = getOp(binary->opName, 2);
             if (op == &Operator::DOT) {
-                //visitDot(binary);
+                return visitDot(binary, preferredIndex);
             } else if (op == &Operator::ASSIGN) {
                 return visitAssignment(binary, preferredIndex);
             } else if (op == &Operator::AND) {

@@ -352,6 +352,9 @@ namespace zero {
     }
 
     uint64_t z_handler_GET_IN_OBJECT(z_op_t op1, z_op_t op2, z_op_t dest) {
+        auto object = OP1_PTR;
+
+        *DESTINATION_PTR = object[op2.uint_vaLue];
         return 0;
     }
 

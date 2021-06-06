@@ -6,4 +6,5 @@ class BasicClass {
     }
 }
 
-var basicClassInstance = BasicClass();
+var basicClassInstance = BasicClass()
+print(basicClassInstance.somePrp)

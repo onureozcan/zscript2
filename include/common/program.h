@@ -53,7 +53,7 @@ namespace zero {
         POP,
         ARG_READ, // read an argument from the stack. pop wont work here because we need to take element relative to the base pointer
         GET_IN_PARENT, // to get an index in a parent context into current context. op1: depth, op2: index
-        GET_IN_OBJECT, // to get an index in a an object into current context. op1: object index in current context, op2: index
+        GET_IN_OBJECT, // to get an index in a an object into current context. op1: object index in current context, op2: index of value relative to the object
         SET_IN_PARENT, // to set an index in a parent context from current context. op1: depth, op2: current value index, dest: index at parent
         SET_IN_OBJECT, // to set an index in a an object from current context. op1: object index in current context, op2: value in current context, dest: index at object
         RET
