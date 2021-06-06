@@ -29,3 +29,6 @@ null
 0.000000
 null
 null
+null
+0
+0.000000

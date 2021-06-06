@@ -444,6 +444,7 @@ namespace zero {
             stack_pointer = base_pointer;
             base_pointer = pop().uint_value;
 
+            auto return_mode = instruction_ptr->op1;
             auto return_index_in_parent = pop().uint_value;
             auto return_index_in_current = instruction_ptr->destination;
             auto current_context_object = context_object;
@@ -454,7 +455,28 @@ namespace zero {
                 // move return value
                 *(z_value_t *) (((uintptr_t) parent_context_object) + return_index_in_parent) =
                         current_context_object[return_index_in_current];
+            } else {
+                // special return mode
+                z_value_t return_value;
+                switch (return_mode) {
+                    case RETURN_MODE_NULL:
+                        return_value = nvalue();
+                        break;
+                    case RETURN_MODE_INT_0:
+                        return_value = ivalue(0);
+                        break;
+                    case RETURN_MODE_DECIMAL_0:
+                        return_value = dvalue(0);
+                        break;
+                    case RETURN_MODE_CLASS_INSTANCE:
+                        return_value = pvalue(current_context_object);
+                        break;
+                    default:
+                        goto end;
+                }
+                *(z_value_t *) (((uintptr_t) parent_context_object) + return_index_in_parent) = return_value;
             }
+            end:
             auto number_of_params_pushed_to_stack = pop().uint_value;
             stack_pointer -= number_of_params_pushed_to_stack;
             VM_DEBUG(
